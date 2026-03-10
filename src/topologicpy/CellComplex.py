@@ -677,7 +677,7 @@ class CellComplex():
                 print("CellComplex.Decompose - Error: The input cellcomplex parameter is not a valid topologic cellcomplex. Returning None.")
             return None
         
-        return Topology.Decompose(topology=cellComplex, tiltAngle = tiltAngle, tolerance = tolerance, silent = solent)
+        return Topology.Decompose(topology=cellComplex, tiltAngle = tiltAngle, tolerance = tolerance, silent = silent)
     
     @staticmethod
     def Delaunay(vertices: list = None, tolerance: float = 0.0001):
