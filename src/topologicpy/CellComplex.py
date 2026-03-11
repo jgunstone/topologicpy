@@ -636,7 +636,7 @@ class CellComplex():
                                  direction=direction, placement=placement, tolerance=tolerance)
     
     @staticmethod
-    def Decompose(cellComplex, tiltAngle: float = 10.0, tolerance: float = 0.0001) -> dict:
+    def Decompose(cellComplex, tiltAngle: float = 10.0, tolerance: float = 0.0001, silent: bool = False) -> dict:
         """
         Decomposes the input cellComplex into its logical components. This method assumes that the positive Z direction is UP.
 
@@ -670,114 +670,14 @@ class CellComplex():
             15. "internalInclinedApertures": list of internal inclined apertures
 
         """
-        from topologicpy.Vertex import Vertex
-        from topologicpy.Face import Face
-        from topologicpy.Vector import Vector
-        from topologicpy.Aperture import Aperture
         from topologicpy.Topology import Topology
 
-        def angleCode(f, up, tiltAngle):
-            dirA = Face.Normal(f)
-            ang = round(Vector.Angle(dirA, up), 2)
-            if abs(ang - 90) < tiltAngle:
-                code = 0
-            elif abs(ang) < tiltAngle:
-                code = 1
-            elif abs(ang - 180) < tiltAngle:
-                code = 2
-            else:
-                code = 3
-            return code
-
-        def getApertures(topology):
-            return Topology.Apertures(topology)
-
         if not Topology.IsInstance(cellComplex, "CellComplex"):
-            print("CellComplex.Decompose - Error: The input cellcomplex parameter is not a valid topologic cellcomplex. Returning None.")
+            if not silent:
+                print("CellComplex.Decompose - Error: The input cellcomplex parameter is not a valid topologic cellcomplex. Returning None.")
             return None
-        externalVerticalFaces = []
-        internalVerticalFaces = []
-        topHorizontalFaces = []
-        bottomHorizontalFaces = []
-        internalHorizontalFaces = []
-        externalInclinedFaces = []
-        internalInclinedFaces = []
-        externalVerticalApertures = []
-        internalVerticalApertures = []
-        topHorizontalApertures = []
-        bottomHorizontalApertures = []
-        internalHorizontalApertures = []
-        externalInclinedApertures = []
-        internalInclinedApertures = []
-        tiltAngle = abs(tiltAngle)
-        faces = CellComplex.Faces(cellComplex)
-        zList = []
-        for f in faces:
-            zList.append(Vertex.Z(Topology.Centroid(f)))
-        zMin = min(zList)
-        zMax = max(zList)
-        up = [0, 0, 1]
-        for aFace in faces:
-            aCode = angleCode(aFace, up, tiltAngle)
-            cells = []
-            aFace.Cells(cellComplex, cells)
-            n = len(cells)
-            if aCode == 0:
-                if n == 1:
-                    externalVerticalFaces.append(aFace)
-                    externalVerticalApertures += getApertures(aFace)
-                else:
-                    internalVerticalFaces.append(aFace)
-                    internalVerticalApertures += getApertures(aFace)
-            elif aCode == 1:
-                if n == 1:
-                    if abs(Vertex.Z(Topology.Centroid(aFace)) - zMin) <= tolerance:
-                        bottomHorizontalFaces.append(aFace)
-                        bottomHorizontalApertures += getApertures(aFace)
-                    else:
-                        topHorizontalFaces.append(aFace)
-                        topHorizontalApertures += getApertures(aFace)
-                else:
-                    internalHorizontalFaces.append(aFace)
-                    internalHorizontalApertures += getApertures(aFace)
-            elif aCode == 2:
-                if n == 1:
-                    if abs(Vertex.Z(Topology.Centroid(aFace)) - zMax) <= tolerance:
-                        topHorizontalFaces.append(aFace)
-                        topHorizontalApertures += getApertures(aFace)
-                    else:
-                        bottomHorizontalFaces.append(aFace)
-                        bottomHorizontalApertures += getApertures(aFace)
-                else:
-                    internalHorizontalFaces.append(aFace)
-                    internalHorizontalApertures += getApertures(aFace)
-            elif aCode == 3:
-                if n == 1:
-                    externalInclinedFaces.append(aFace)
-                    externalInclinedApertures += getApertures(aFace)
-                else:
-                    internalInclinedFaces.append(aFace)
-                    internalInclinedApertures += getApertures(aFace)
         
-        cells = Topology.Cells(cellComplex)
-        d = {
-            "cells" : cells,
-            "externalVerticalFaces" : externalVerticalFaces,
-            "internalVerticalFaces" : internalVerticalFaces,
-            "topHorizontalFaces" : topHorizontalFaces,
-            "bottomHorizontalFaces" : bottomHorizontalFaces,
-            "internalHorizontalFaces" : internalHorizontalFaces,
-            "externalInclinedFaces" : externalInclinedFaces,
-            "internalInclinedFaces" : internalInclinedFaces,
-            "externalVerticalApertures" : externalVerticalApertures,
-            "internalVerticalApertures" : internalVerticalApertures,
-            "topHorizontalApertures" : topHorizontalApertures,
-            "bottomHorizontalApertures" : bottomHorizontalApertures,
-            "internalHorizontalApertures" : internalHorizontalApertures,
-            "externalInclinedApertures" : externalInclinedApertures,
-            "internalInclinedApertures" : internalInclinedApertures
-            }
-        return d
+        return Topology.Decompose(topology=cellComplex, tiltAngle = tiltAngle, tolerance = tolerance, silent = silent)
     
     @staticmethod
     def Delaunay(vertices: list = None, tolerance: float = 0.0001):

@@ -1026,6 +1026,208 @@ class Topology():
 
         return dict(groups), {}
     
+
+
+    @staticmethod
+    def Decompose(topology, tiltAngle: float = 10.0, tolerance: float = 0.0001, silent: bool = False) -> dict:
+        """
+        Decomposes the input topology into its logical components. This method assume:
+        1. The input topology is either a cell, a CellComplex, or a Cluster containing at least one or more faces.
+        2. That the positive Z direction is UP [0,0,1].
+
+        Parameters
+        ----------
+        topology : topologic_core.Topology
+            the input topology (cell, cellComplex, or Cluster with at least faces).
+        tiltAngle : float , optional
+            The threshold tilt angle in degrees to determine if a face is vertical, horizontal, or tilted. The tilt angle is measured from the nearest cardinal direction. Default is 10.
+        tolerance : float , optional
+            The desired tolerance. Default is 0.0001.
+        silent : bool , optional
+            If set to True, error and warning messages are suppressed. Default is False.
+
+        Returns
+        -------
+        dictionary
+            A dictionary with the following keys and values:
+            1. "cells": list of cells
+            2. "externalVerticalFaces": list of external vertical faces
+            3. "internalVerticalFaces": list of internal vertical faces
+            4. "topHorizontalFaces": list of top horizontal faces
+            5. "bottomHorizontalFaces": list of bottom horizontal faces
+            6. "internalHorizontalFaces": list of internal horizontal faces
+            7. "externalInclinedFaces": list of external inclined faces
+            8. "internalInclinedFaces": list of internal inclined faces
+            9. "externalVerticalApertures": list of apertures that belong to external vertical faces
+            10. "internalVerticalApertures": list of apertures that belong to internal vertical faces
+            11. "topHorizontalApertures": list of apertures that belong to top horizontal faces
+            12. "bottomHorizontalApertures": list of apertures that belong to bottom horizontal faces
+            13. "internalHorizontalApertures": list of aperttures that belong to internal horizontal faces
+            14. "externalInclinedApertures": list of apertures that belong to external inclined faces
+            15. "internalInclinedApertures": list of apertures that belong to internal inclined faces
+            16. "freeVerticalFaces" : list of free vertical faces
+            17. "freeHorizontalFaces" : list of free horizontal faces
+            18. "freeInclinedFaces" : list of free inclined faces,
+            19. "freeVerticalApertures" : list of apertures that belong to free vertical faces,
+            20. "freeHorizontalApertures" : list of apertures that belong to free horiztontal faces
+            21. "freeInclinedApertures" : list of apertures that belong to free inclined faces
+
+        """
+        from topologicpy.Vertex import Vertex
+        from topologicpy.Face import Face
+        from topologicpy.Vector import Vector
+        from topologicpy.Topology import Topology
+
+        def angleCode(f, up, tiltAngle):
+            # 0 = Vertical
+            # 1 = Horizontal bottom facing
+            # 2 = Horizontal top facing
+            # 3 = Inclined
+            dirA = Face.Normal(f)
+            ang = round(Vector.Angle(dirA, up), 2)
+            if abs(ang - 90) < tiltAngle:
+                code = 0
+            elif abs(ang) < tiltAngle:
+                code = 1
+            elif abs(ang - 180) < tiltAngle:
+                code = 2
+            else:
+                code = 3
+            return code
+
+        def getApertures(topology):
+            return Topology.Apertures(topology)
+
+        if Topology.Type(topology) < 32:
+            if not silent:
+                print("Topology.Decompose - Error: The input topology parameter is not a valid topologic cell, cellcomplex, or cluster. Returning None.")
+            return None
+        
+        faces = Topology.Faces(topology, silent=True)
+        if len(faces) < 1:
+            if not silent:
+                print("Topology.Decompose - Error: The input topology parameter does not contain any valid topologic faces. Returning None.")
+            return None
+
+        externalVerticalFaces = []
+        internalVerticalFaces = []
+        topHorizontalFaces = []
+        bottomHorizontalFaces = []
+        internalHorizontalFaces = []
+        externalInclinedFaces = []
+        internalInclinedFaces = []
+        externalVerticalApertures = []
+        internalVerticalApertures = []
+        topHorizontalApertures = []
+        bottomHorizontalApertures = []
+        internalHorizontalApertures = []
+        externalInclinedApertures = []
+        internalInclinedApertures = []
+
+        freeVerticalFaces = []
+        freeHorizontalFaces = []
+        freeInclinedFaces = []
+
+        freeVerticalApertures = []
+        freeHorizontalApertures = []
+        freeInclinedApertures = []
+
+        tiltAngle = abs(tiltAngle)
+        zList = []
+        for f in faces:
+            zList.append(Vertex.Z(Topology.Centroid(f)))
+        zMin = min(zList)
+        zMax = max(zList)
+        up = [0, 0, 1]
+        for aFace in faces:
+            aCode = angleCode(aFace, up, tiltAngle)
+            cells = Topology.SuperTopologies(aFace, hostTopology=topology, topologyType="cell")
+
+            n = len(cells)
+            if aCode == 0:
+                if n == 0:
+                    freeVerticalFaces.append(aFace)
+                    freeVerticalApertures += getApertures(aFace)
+                elif n == 1:
+                    externalVerticalFaces.append(aFace)
+                    externalVerticalApertures += getApertures(aFace)
+                else:
+                    internalVerticalFaces.append(aFace)
+                    internalVerticalApertures += getApertures(aFace)
+            elif aCode == 1:
+                if n == 0:
+                    freeHorizontalFaces.append(aFace)
+                    freeHorizontalApertures += getApertures(aFace)
+                elif n == 1:
+                    if abs(Vertex.Z(Topology.Centroid(aFace)) - zMin) <= tolerance:
+                        bottomHorizontalFaces.append(aFace)
+                        bottomHorizontalApertures += getApertures(aFace)
+                    else:
+                        topHorizontalFaces.append(aFace)
+                        topHorizontalApertures += getApertures(aFace)
+                else:
+                    internalHorizontalFaces.append(aFace)
+                    internalHorizontalApertures += getApertures(aFace)
+            elif aCode == 2:
+                if n == 0:
+                    freeHorizontalFaces.append(aFace)
+                    freeHorizontalApertures += getApertures(aFace)
+                elif n == 1:
+                    if abs(Vertex.Z(Topology.Centroid(aFace)) - zMax) <= tolerance:
+                        topHorizontalFaces.append(aFace)
+                        topHorizontalApertures += getApertures(aFace)
+                    else:
+                        bottomHorizontalFaces.append(aFace)
+                        bottomHorizontalApertures += getApertures(aFace)
+                else:
+                    internalHorizontalFaces.append(aFace)
+                    internalHorizontalApertures += getApertures(aFace)
+            elif aCode == 3:
+                if n == 0:
+                    freeInclinedFaces.append(aFace)
+                    freeInclinedApertures += getApertures(aFace)
+                elif n == 1:
+                    externalInclinedFaces.append(aFace)
+                    externalInclinedApertures += getApertures(aFace)
+                else:
+                    internalInclinedFaces.append(aFace)
+                    internalInclinedApertures += getApertures(aFace)
+        
+        verticalFaces = externalVerticalFaces+internalVerticalFaces+freeVerticalFaces
+        horizontalFaces = bottomHorizontalFaces+topHorizontalFaces+internalHorizontalFaces+freeHorizontalFaces
+        inclinedFaces = externalInclinedFaces+internalInclinedFaces+freeInclinedFaces
+
+        cells = Topology.Cells(topology, silent=True)
+        d = {
+            "cells" : cells,
+            "externalVerticalFaces" : externalVerticalFaces,
+            "internalVerticalFaces" : internalVerticalFaces,
+            "topHorizontalFaces" : topHorizontalFaces,
+            "bottomHorizontalFaces" : bottomHorizontalFaces,
+            "internalHorizontalFaces" : internalHorizontalFaces,
+            "externalInclinedFaces" : externalInclinedFaces,
+            "internalInclinedFaces" : internalInclinedFaces,
+            "externalVerticalApertures" : externalVerticalApertures,
+            "internalVerticalApertures" : internalVerticalApertures,
+            "topHorizontalApertures" : topHorizontalApertures,
+            "bottomHorizontalApertures" : bottomHorizontalApertures,
+            "internalHorizontalApertures" : internalHorizontalApertures,
+            "externalInclinedApertures" : externalInclinedApertures,
+            "internalInclinedApertures" : internalInclinedApertures,
+            "freeVerticalFaces" : freeVerticalFaces,
+            "freeHorizontalFaces" : freeHorizontalFaces,
+            "freeInclinedFaces" : freeInclinedFaces,
+            "freeVerticalApertures" : freeVerticalApertures,
+            "freeHorizontalApertures" : freeHorizontalApertures,
+            "freeInclinedApertures" : freeInclinedApertures,
+            "verticalFaces" : verticalFaces,
+            "horizontalFaces" : horizontalFaces,
+            "inclinedFaces" : inclinedFaces
+            }
+        return d
+
+
+
     @staticmethod
     def Difference(topologyA, topologyB, tranDict: bool = False, tolerance: float = 0.0001, silent: bool = False):
         """
@@ -9047,6 +9249,15 @@ class Topology():
             if not silent:
                 print("Topology.Scale - Error: The input origin parameter is not a valid Vertex. Returning None.")
             return None
+        if abs(x) <= 0.00001:
+            if not silent:
+                print("Topology.Scale - Warning: the x input parameter is close to 0. This can cause an malformed geometric result.")
+        if abs(y) <= 0.00001:
+            if not silent:
+                print("Topology.Scale - Warning: the y input parameter is close to 0. This can cause an malformed geometric result.")
+        if abs(z) <= 0.00001:
+            if not silent:
+                print("Topology.Scale - Warning: the z input parameter is close to 0. This can cause an malformed geometric result.")
         return_topology = None
         try:
             return_topology = topologic.TopologyUtility.Scale(topology, origin, x, y, z) # Hook to Core
@@ -11508,6 +11719,9 @@ class Topology():
                 new_v = v
             new_vertices.append(new_v)
         return_topology = Topology.ReplaceVertices(topology, vertices, new_vertices)
+        return_topology = Topology.Fix(return_topology, topologyType=Topology.TypeAsString(topology))
+        if not Topology.Type(return_topology) == Topology.Type(topology):
+            return_topology = Topology.SelfMerge(return_topology)
         return return_topology
     
     @staticmethod
@@ -12410,6 +12624,7 @@ class Topology():
         origin = Vertex.ByCoordinates(0, 0, 0)
 
         # Apply scale -> rotate -> translate (transfer dictionaries at the end, for speed)
+
         result = Topology.Scale(
             topology,
             origin=origin,

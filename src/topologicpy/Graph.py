@@ -4049,630 +4049,536 @@ class Graph:
             _set_dict(g, graphDictionary)
         return g
 
+
+
+
     @staticmethod
     def ByIFCFile(file,
-                  includeTypes: list = [],
-                  excludeTypes: list = [],
-                  includeRels: list = [],
-                  excludeRels: list = [],
-                  transferDictionaries: bool = False,
-                  useInternalVertex: bool = False,
-                  storeBREP: bool = False,
-                  removeCoplanarFaces: bool = False,
-                  xMin: float = -0.5, yMin: float = -0.5, zMin: float = -0.5,
-                  xMax: float = 0.5, yMax: float = 0.5, zMax: float = 0.5,
-                  epsilon: float = 0.0001,
-                  tolerance: float = 0.0001,
-                  silent: bool = False):
-        
+                includeTypes: list = None,
+                excludeTypes: list = None,
+                includeRels: list = None,
+                excludeRels: list = None,
+                transferDictionaries: bool = False,
+                useInternalVertex: bool = False,
+                storeBREP: bool = False,
+                removeCoplanarFaces: bool = False,
+                xMin: float = -0.5, yMin: float = -0.5, zMin: float = -0.5,
+                xMax: float = 0.5, yMax: float = 0.5, zMax: float = 0.5,
+                epsilon: float = 0.0001,
+                tolerance: float = 0.0001,
+                silent: bool = False,
+                mode: str = "lightweight"):
         """
-        Create a Graph from an IFC file. This code is partially based on code from Bruno Postle.
+        Create a Graph from an IFC file.
 
         Parameters
         ----------
-        file : file
-            The input IFC file
+        file : ifcopenshell.file
+            The input IFC file.
         includeTypes : list , optional
-            A list of IFC object types to include in the graph. Default is [] which means all object types are included.
+            A list of IFC object types to include in the graph. Default is None
+            which means all object types are included.
         excludeTypes : list , optional
-            A list of IFC object types to exclude from the graph. Default is [] which mean no object type is excluded.
+            A list of IFC object types to exclude from the graph. Default is None
+            which means no object type is excluded.
         includeRels : list , optional
-            A list of IFC relationship types to include in the graph. Default is [] which means all relationship types are included.
+            A list of IFC relationship types to include in the graph. Default is None
+            which means all relationship types are included.
         excludeRels : list , optional
-            A list of IFC relationship types to exclude from the graph. Default is [] which mean no relationship type is excluded.
+            A list of IFC relationship types to exclude from the graph. Default is None
+            which means no relationship type is excluded.
         transferDictionaries : bool , optional
-            NOT USED. If set to True, the dictionaries from the IFC file will be transferred to the topology. Otherwise, they won't. Default is False.
+            Reserved for future use. Default is False.
         useInternalVertex : bool , optional
-            If set to True, use an internal vertex to represent the subtopology. Otherwise, use its centroid. Default is False.
+            In geometry mode, if set to True, use an internal vertex to represent
+            the subtopology. Otherwise, use its centroid. Default is False.
         storeBREP : bool , optional
-            If set to True, store the BRep of the subtopology in its representative vertex. Default is False.
+            In geometry mode, if set to True, store the BREP of the subtopology
+            in its representative vertex. Default is False.
         removeCoplanarFaces : bool , optional
-            If set to True, coplanar faces are removed. Otherwise they are not. Default is False.
-        xMin : float, optional
-            The desired minimum value to assign for a vertex's X coordinate. Default is -0.5.
-        yMin : float, optional
-            The desired minimum value to assign for a vertex's Y coordinate. Default is -0.5.
-        zMin : float, optional
-            The desired minimum value to assign for a vertex's Z coordinate. Default is -0.5.
-        xMax : float, optional
-            The desired maximum value to assign for a vertex's X coordinate. Default is 0.5.
-        yMax : float, optional
-            The desired maximum value to assign for a vertex's Y coordinate. Default is 0.5.
-        zMax : float, optional
-            The desired maximum value to assign for a vertex's Z coordinate. Default is 0.5.
+            In geometry mode, if set to True, coplanar faces are removed.
+            Default is False.
+        xMin : float , optional
+            Desired minimum X coordinate for lightweight layout. Default is -0.5.
+        yMin : float , optional
+            Desired minimum Y coordinate for lightweight layout. Default is -0.5.
+        zMin : float , optional
+            Desired minimum Z coordinate for lightweight layout. Default is -0.5.
+        xMax : float , optional
+            Desired maximum X coordinate for lightweight layout. Default is 0.5.
+        yMax : float , optional
+            Desired maximum Y coordinate for lightweight layout. Default is 0.5.
+        zMax : float , optional
+            Desired maximum Z coordinate for lightweight layout. Default is 0.5.
+        epsilon : float , optional
+            Desired epsilon. Default is 0.0001.
         tolerance : float , optional
-            The desired tolerance. Default is 0.0001.
-        
+            Desired tolerance. Default is 0.0001.
+        silent : bool , optional
+            If set to True, warning messages are suppressed. Default is False.
+        mode : str , optional
+            Import mode. Options are:
+            - "geometry": build representative vertices from full imported Topologic geometry
+            - "lightweight": build representative vertices directly from IFC entities and
+            build the graph through Graph.ByMeshData(...)
+            Default is "lightweight".
+
         Returns
         -------
         topologic_core.Graph
             The created graph.
-        
         """
 
+        import math
+
+        from topologicpy.Graph import Graph
         from topologicpy.Vertex import Vertex
-        from topologicpy.Edge import Edge
         from topologicpy.Dictionary import Dictionary
         from topologicpy.Topology import Topology
-        
-        def vertex_at_key_value(vertices, key, value):
-            for v in vertices:
-                d = Topology.Dictionary(v)
-                d_value = Dictionary.ValueAtKey(d, key)
-                if value == d_value:
-                    return v
-            return None
-        
-        def get_vertices(includeTypes=[], excludeTypes=[], removeCoplanarFaces=False, storeBREP=False, useInternalVertex=useInternalVertex, epsilon=0.0001, tolerance=0.0001):
-            # Get the topologies
-            topologies = Topology.ByIFCFile(file,
-                                            includeTypes=includeTypes,
-                                            excludeTypes=excludeTypes,
-                                        transferDictionaries=True,
-                                        removeCoplanarFaces=removeCoplanarFaces,
-                                        epsilon=epsilon,
-                                        tolerance=tolerance)
-            vertices = []
-            for topology in topologies:
-                if Topology.IsInstance(topology, "Topology"):
-                    if useInternalVertex == True:
-                        v = Topology.InternalVertex(topology)
-                    else:
-                        v = Topology.Centroid(topology)
-                    d = Topology.Dictionary(topology)
-                    if storeBREP:
-                        d = Dictionary.SetValueAtKey(d, "BREP", Topology.BREPString(topology))
-                    if Topology.IsInstance(v, "vertex"):
-                        v = Topology.SetDictionary(v, Topology.Dictionary(topology))
-                        vertices.append(v)
-                    else:
-                        if not silent:
-                            ifc_id = Dictionary.ValueAtKey(Topology.Dictionary(topology), "IFC_global_id", 0)
-                            print(f"Graph.ByIFCFile - Warning: Could not create a vertex for entity {ifc_id}. Skipping")
-            return vertices
-        
-        # Get the relationships
-        def get_relationships(ifc_file, includeRels=[], excludeRels=[]):
-            include_set = set(s.lower() for s in includeRels)
-            exclude_set = set(s.lower() for s in excludeRels)
 
-            relationships = [
-                rel for rel in ifc_file.by_type("IfcRelationship")
-                if (rel.is_a().lower() not in exclude_set) and
-                (not include_set or rel.is_a().lower() in include_set)
-            ]
+        includeTypes = includeTypes or []
+        excludeTypes = excludeTypes or []
+        includeRels = includeRels or []
+        excludeRels = excludeRels or []
+        mode = (mode or "geometry").lower().strip()
 
+        if mode not in ["geometry", "lightweight"]:
+            if not silent:
+                print(f"Graph.ByIFCFile - Warning: Unsupported mode '{mode}'. Falling back to 'geometry'.")
+            mode = "geometry"
+
+        # -------------------------------------------------------------------------
+        # Helpers
+        # -------------------------------------------------------------------------
+
+        def _entity_global_id(entity):
+            try:
+                return getattr(entity, "GlobalId", None)
+            except Exception:
+                return None
+
+        def _entity_type(entity):
+            try:
+                return entity.is_a()
+            except Exception:
+                return None
+
+        def _entity_name(entity):
+            try:
+                return getattr(entity, "Name", None)
+            except Exception:
+                return None
+
+        def _entity_id(entity):
+            try:
+                return entity.id()
+            except Exception:
+                return None
+
+        def _passes_type_filter(entity, include_set, exclude_set):
+            et = _entity_type(entity)
+            if not et:
+                return False
+            et_l = et.lower()
+            if et_l in exclude_set:
+                return False
+            if include_set and et_l not in include_set:
+                return False
+            return True
+
+        def _dictionary_from_ifc_entity(entity):
+            keys = []
+            values = []
+
+            gid = _entity_global_id(entity)
+            if gid is not None:
+                keys.append("IFC_global_id")
+                values.append(gid)
+
+            eid = _entity_id(entity)
+            if eid is not None:
+                keys.append("IFC_id")
+                values.append(eid)
+
+            ename = _entity_name(entity)
+            if ename is not None:
+                keys.append("IFC_name")
+                values.append(ename)
+
+            etype = _entity_type(entity)
+            if etype is not None:
+                keys.append("IFC_type")
+                values.append(etype)
+
+            try:
+                return Dictionary.ByKeysValues(keys, values)
+            except Exception:
+                return None
+
+        def _relationship_dictionary(ifc_rel):
+            try:
+                return Dictionary.ByKeysValues(
+                    ["IFC_global_id", "IFC_name", "IFC_type"],
+                    [ifc_rel.id(), getattr(ifc_rel, "Name", None), ifc_rel.is_a()]
+                )
+            except Exception:
+                return None
+
+        def _relationship_endpoints(ifc_rel):
+            """
+            Returns
+            -------
+            tuple
+                (source_entity, destination_entities) or (None, None)
+            """
+            if ifc_rel.is_a("IfcRelConnectsPorts"):
+                src = getattr(ifc_rel, "RelatingPort", None)
+                dst = getattr(ifc_rel, "RelatedPorts", None)
+                return src, list(dst) if dst else []
+
+            elif ifc_rel.is_a("IfcRelConnectsPortToElement"):
+                src = getattr(ifc_rel, "RelatingPort", None)
+                dst = getattr(ifc_rel, "RelatedElement", None)
+                return src, [dst] if dst else []
+
+            elif ifc_rel.is_a("IfcRelAggregates"):
+                src = getattr(ifc_rel, "RelatingObject", None)
+                dst = getattr(ifc_rel, "RelatedObjects", None)
+                return src, list(dst) if dst else []
+
+            elif ifc_rel.is_a("IfcRelNests"):
+                src = getattr(ifc_rel, "RelatingObject", None)
+                dst = getattr(ifc_rel, "RelatedObjects", None)
+                return src, list(dst) if dst else []
+
+            elif ifc_rel.is_a("IfcRelAssignsToGroup"):
+                src = getattr(ifc_rel, "RelatingGroup", None)
+                dst = getattr(ifc_rel, "RelatedObjects", None)
+                return src, list(dst) if dst else []
+
+            elif ifc_rel.is_a("IfcRelConnectsPathElements"):
+                src = getattr(ifc_rel, "RelatingElement", None)
+                dst = getattr(ifc_rel, "RelatedElement", None)
+                return src, [dst] if dst else []
+
+            elif ifc_rel.is_a("IfcRelConnectsStructuralMember"):
+                src = getattr(ifc_rel, "RelatingStructuralMember", None)
+                dst = getattr(ifc_rel, "RelatedStructuralConnection", None)
+                return src, [dst] if dst else []
+
+            elif ifc_rel.is_a("IfcRelContainedInSpatialStructure"):
+                src = getattr(ifc_rel, "RelatingStructure", None)
+                dst = getattr(ifc_rel, "RelatedElements", None)
+                return src, list(dst) if dst else []
+
+            elif ifc_rel.is_a("IfcRelFillsElement"):
+                src = getattr(ifc_rel, "RelatingOpeningElement", None)
+                dst = getattr(ifc_rel, "RelatedBuildingElement", None)
+                return src, [dst] if dst else []
+
+            elif ifc_rel.is_a("IfcRelSpaceBoundary"):
+                src = getattr(ifc_rel, "RelatingSpace", None)
+                dst = getattr(ifc_rel, "RelatedBuildingElement", None)
+                return src, [dst] if dst else []
+
+            elif ifc_rel.is_a("IfcRelVoidsElement"):
+                src = getattr(ifc_rel, "RelatingBuildingElement", None)
+                dst = getattr(ifc_rel, "RelatedOpeningElement", None)
+                return src, [dst] if dst else []
+
+            elif (
+                ifc_rel.is_a("IfcRelDefinesByProperties") or
+                ifc_rel.is_a("IfcRelAssociatesMaterial") or
+                ifc_rel.is_a("IfcRelDefinesByType")
+            ):
+                return None, None
+
+            if not silent:
+                print(f"Graph.ByIFCFile - Warning: The relationship {ifc_rel} is not supported. Skipping.")
+            return None, None
+
+        def _get_relationships(ifc_file, includeRels, excludeRels):
+            include_set = {s.lower() for s in includeRels}
+            exclude_set = {s.lower() for s in excludeRels}
+            relationships = []
+
+            for rel in ifc_file.by_type("IfcRelationship"):
+                try:
+                    rel_type = rel.is_a().lower()
+                except Exception:
+                    continue
+                if rel_type in exclude_set:
+                    continue
+                if include_set and rel_type not in include_set:
+                    continue
+                relationships.append(rel)
             return relationships
-        def get_edges(ifc_relationships, vertices):
-            tuples = []
+
+        # -------------------------------------------------------------------------
+        # Geometry mode
+        # -------------------------------------------------------------------------
+
+        def _get_vertices_geometry_mode():
+            topologies = Topology.ByIFCFile(
+                file,
+                includeTypes=includeTypes,
+                excludeTypes=excludeTypes,
+                transferDictionaries=True,
+                removeCoplanarFaces=removeCoplanarFaces,
+                epsilon=epsilon,
+                tolerance=tolerance
+            )
+
+            vertices = []
+            gid_to_vertex = {}
+            gid_to_index = {}
+
+            for topology in topologies:
+                if not Topology.IsInstance(topology, "Topology"):
+                    continue
+
+                if useInternalVertex:
+                    v = Topology.InternalVertex(topology)
+                else:
+                    v = Topology.Centroid(topology)
+
+                if not Topology.IsInstance(v, "vertex"):
+                    if not silent:
+                        td = Topology.Dictionary(topology)
+                        ifc_id = Dictionary.ValueAtKey(td, "IFC_global_id") if td else None
+                        print(f"Graph.ByIFCFile - Warning: Could not create a vertex for entity {ifc_id}. Skipping")
+                    continue
+
+                td = Topology.Dictionary(topology)
+                if storeBREP:
+                    try:
+                        td = Dictionary.SetValueAtKey(td, "BREP", Topology.BREPString(topology))
+                    except Exception:
+                        if not silent:
+                            print("Graph.ByIFCFile - Warning: Could not store BREP string for one topology. Continuing.")
+
+                v = Topology.SetDictionary(v, td)
+                vertices.append(v)
+
+                gid = Dictionary.ValueAtKey(td, "IFC_global_id") if td else None
+                if gid is not None:
+                    gid_to_vertex[gid] = v
+                    gid_to_index[gid] = len(vertices) - 1
+
+            return vertices, gid_to_vertex, gid_to_index
+
+        def _get_edges_geometry_mode(ifc_relationships, gid_to_vertex, gid_to_index):
+            from topologicpy.Edge import Edge
+
             edges = []
+            seen_pairs = set()
 
             for ifc_rel in ifc_relationships:
-                source = None
-                destinations = []
-                if ifc_rel.is_a("IfcRelConnectsPorts"):
-                    source = ifc_rel.RelatingPort
-                    destinations = ifc_rel.RelatedPorts
-                elif ifc_rel.is_a("IfcRelConnectsPortToElement"):
-                    source = ifc_rel.RelatingPort
-                    destinations = [ifc_rel.RelatedElement]
-                elif ifc_rel.is_a("IfcRelAggregates"):
-                    source = ifc_rel.RelatingObject
-                    destinations = ifc_rel.RelatedObjects
-                elif ifc_rel.is_a("IfcRelNests"):
-                    source = ifc_rel.RelatingObject
-                    destinations = ifc_rel.RelatedObjects
-                elif ifc_rel.is_a("IfcRelAssignsToGroup"):
-                    source = ifc_rel.RelatingGroup
-                    destinations = ifc_rel.RelatedObjects
-                elif ifc_rel.is_a("IfcRelConnectsPathElements"):
-                    source = ifc_rel.RelatingElement
-                    destinations = [ifc_rel.RelatedElement]
-                elif ifc_rel.is_a("IfcRelConnectsStructuralMember"):
-                    source = ifc_rel.RelatingStructuralMember
-                    destinations = [ifc_rel.RelatedStructuralConnection]
-                elif ifc_rel.is_a("IfcRelContainedInSpatialStructure"):
-                    source = ifc_rel.RelatingStructure
-                    destinations = ifc_rel.RelatedElements
-                elif ifc_rel.is_a("IfcRelFillsElement"):
-                    source = ifc_rel.RelatingOpeningElement
-                    destinations = [ifc_rel.RelatedBuildingElement]
-                elif ifc_rel.is_a("IfcRelSpaceBoundary"):
-                    source = ifc_rel.RelatingSpace
-                    destinations = [ifc_rel.RelatedBuildingElement]
-                elif ifc_rel.is_a("IfcRelVoidsElement"):
-                    source = ifc_rel.RelatingBuildingElement
-                    destinations = [ifc_rel.RelatedOpeningElement]
-                elif ifc_rel.is_a("IfcRelDefinesByProperties") or ifc_rel.is_a("IfcRelAssociatesMaterial") or ifc_rel.is_a("IfcRelDefinesByType"):
-                    source = None
-                    destinations = None
-                else:
-                    print("Graph.ByIFCFile - Warning: The relationship", ifc_rel, "is not supported. Skipping.")
-                if source:
-                    sv = vertex_at_key_value(vertices, key="IFC_global_id", value=getattr(source, 'GlobalId', 0))
-                    if sv:
-                        si = Vertex.Index(sv, vertices, tolerance=tolerance)
-                        if not si == None:
-                            for destination in destinations:
-                                if destination == None:
-                                    continue
-                                ev = vertex_at_key_value(vertices, key="IFC_global_id", value=getattr(destination, 'GlobalId', 0))
-                                if ev:
-                                    ei = Vertex.Index(ev, vertices, tolerance=tolerance)
-                                    if not ei == None:
-                                        if not si == ei:
-                                            if not [si,ei] in tuples:
-                                                tuples.append([si,ei])
-                                                tuples.append([ei,si])
-                                                e = Edge.ByVertices([sv,ev])
-                                                if Topology.IsInstance(e, "edge"):
-                                                    d = Dictionary.ByKeysValues(["IFC_global_id", "IFC_name", "IFC_type"], [ifc_rel.id(), ifc_rel.Name, ifc_rel.is_a()])
-                                                    e = Topology.SetDictionary(e, d)
-                                                    edges.append(e)
-                                                else:
-                                                    if not silent:
-                                                        if not silent:
-                                                            print(f"Graph.ByIFCFile - Warning: Could not create an edge for relationship {ifc_rel.id()}. Skipping")
+                source, destinations = _relationship_endpoints(ifc_rel)
+                if source is None or not destinations:
+                    continue
 
+                source_gid = _entity_global_id(source)
+                if not source_gid:
+                    continue
+
+                sv = gid_to_vertex.get(source_gid)
+                si = gid_to_index.get(source_gid)
+                if sv is None or si is None:
+                    continue
+
+                rel_dict = _relationship_dictionary(ifc_rel)
+
+                for destination in destinations:
+                    if destination is None:
+                        continue
+
+                    dest_gid = _entity_global_id(destination)
+                    if not dest_gid:
+                        continue
+
+                    ev = gid_to_vertex.get(dest_gid)
+                    ei = gid_to_index.get(dest_gid)
+                    if ev is None or ei is None:
+                        continue
+
+                    if si == ei:
+                        continue
+
+                    pair = (si, ei) if si < ei else (ei, si)
+                    if pair in seen_pairs:
+                        continue
+                    seen_pairs.add(pair)
+
+                    e = Edge.ByVertices([sv, ev])
+                    if Topology.IsInstance(e, "edge"):
+                        if rel_dict is not None:
+                            e = Topology.SetDictionary(e, rel_dict)
+                        edges.append(e)
+                    else:
+                        if not silent:
+                            print(f"Graph.ByIFCFile - Warning: Could not create an edge for relationship {ifc_rel.id()}. Skipping")
             return edges
-        
-        vertices = get_vertices(includeTypes=includeTypes,
-                                excludeTypes=excludeTypes,
-                                removeCoplanarFaces=removeCoplanarFaces,
-                                storeBREP=storeBREP,
-                                useInternalVertex=useInternalVertex,
-                                epsilon=epsilon,
-                                tolerance=0.0001)
-        relationships = get_relationships(file, includeRels=includeRels, excludeRels=excludeRels)
-        edges = get_edges(relationships, vertices)
-        return Graph.ByVerticesEdges(vertices, edges)
-        
-    # @staticmethod
-    # def ByIFCFile_old(file,
-    #               includeTypes: list = [],
-    #               excludeTypes: list = [],
-    #               includeRels: list = [],
-    #               excludeRels: list = [],
-    #               transferDictionaries: bool = False,
-    #               useInternalVertex: bool = False,
-    #               storeBREP: bool = False,
-    #               removeCoplanarFaces: bool = False,
-    #               xMin: float = -0.5, yMin: float = -0.5, zMin: float = -0.5,
-    #               xMax: float = 0.5, yMax: float = 0.5, zMax: float = 0.5,
-    #               tolerance: float = 0.0001):
-    #     """
-    #     Create a Graph from an IFC file. This code is partially based on code from Bruno Postle.
 
-    #     Parameters
-    #     ----------
-    #     file : file
-    #         The input IFC file
-    #     includeTypes : list , optional
-    #         A list of IFC object types to include in the graph. Default is [] which means all object types are included.
-    #     excludeTypes : list , optional
-    #         A list of IFC object types to exclude from the graph. Default is [] which mean no object type is excluded.
-    #     includeRels : list , optional
-    #         A list of IFC relationship types to include in the graph. Default is [] which means all relationship types are included.
-    #     excludeRels : list , optional
-    #         A list of IFC relationship types to exclude from the graph. Default is [] which mean no relationship type is excluded.
-    #     transferDictionaries : bool , optional
-    #         If set to True, the dictionaries from the IFC file will be transferred to the topology. Otherwise, they won't. Default is False.
-    #     useInternalVertex : bool , optional
-    #         If set to True, use an internal vertex to represent the subtopology. Otherwise, use its centroid. Default is False.
-    #     storeBREP : bool , optional
-    #         If set to True, store the BRep of the subtopology in its representative vertex. Default is False.
-    #     removeCoplanarFaces : bool , optional
-    #         If set to True, coplanar faces are removed. Otherwise they are not. Default is False.
-    #     xMin : float, optional
-    #         The desired minimum value to assign for a vertex's X coordinate. Default is -0.5.
-    #     yMin : float, optional
-    #         The desired minimum value to assign for a vertex's Y coordinate. Default is -0.5.
-    #     zMin : float, optional
-    #         The desired minimum value to assign for a vertex's Z coordinate. Default is -0.5.
-    #     xMax : float, optional
-    #         The desired maximum value to assign for a vertex's X coordinate. Default is 0.5.
-    #     yMax : float, optional
-    #         The desired maximum value to assign for a vertex's Y coordinate. Default is 0.5.
-    #     zMax : float, optional
-    #         The desired maximum value to assign for a vertex's Z coordinate. Default is 0.5.
-    #     tolerance : float , optional
-    #         The desired tolerance. Default is 0.0001.
-        
-    #     Returns
-    #     -------
-    #     topologic_core.Graph
-    #         The created graph.
-        
-    #     """
-    #     from topologicpy.Topology import Topology
-    #     from topologicpy.Vertex import Vertex
-    #     from topologicpy.Edge import Edge
-    #     from topologicpy.Graph import Graph
-    #     from topologicpy.Dictionary import Dictionary
-    #     try:
-    #         import ifcopenshell
-    #         import ifcopenshell.util.placement
-    #         import ifcopenshell.util.element
-    #         import ifcopenshell.util.shape
-    #         import ifcopenshell.geom
-    #     except:
-    #         print("Graph.ByIFCFile - Warning: Installing required ifcopenshell library.")
-    #         try:
-    #             os.system("pip install ifcopenshell")
-    #         except:
-    #             os.system("pip install ifcopenshell --user")
-    #         try:
-    #             import ifcopenshell
-    #             import ifcopenshell.util.placement
-    #             import ifcopenshell.util.element
-    #             import ifcopenshell.util.shape
-    #             import ifcopenshell.geom
-    #             print("Graph.ByIFCFile - Warning: ifcopenshell library installed correctly.")
-    #         except:
-    #             warnings.warn("Graph.ByIFCFile - Error: Could not import ifcopenshell. Please try to install ifcopenshell manually. Returning None.")
-    #             return None
-        
-    #     import random
+        # -------------------------------------------------------------------------
+        # Lightweight mode
+        # -------------------------------------------------------------------------
 
-    #     def vertexAtKeyValue(vertices, key, value):
-    #         for v in vertices:
-    #             d = Topology.Dictionary(v)
-    #             d_value = Dictionary.ValueAtKey(d, key)
-    #             if value == d_value:
-    #                 return v
-    #         return None
+        def _synthetic_coordinates(index, total_count):
+            """
+            Deterministic lightweight layout.
 
-    #     def IFCObjects(ifc_file, include=[], exclude=[]):
-    #         include = [s.lower() for s in include]
-    #         exclude = [s.lower() for s in exclude]
-    #         all_objects = ifc_file.by_type('IfcProduct')
-    #         return_objects = []
-    #         for obj in all_objects:
-    #             is_a = obj.is_a().lower()
-    #             if is_a in exclude:
-    #                 continue
-    #             if is_a in include or len(include) == 0:
-    #                 return_objects.append(obj)
-    #         return return_objects
+            Places vertices on a regular 2D grid spanning [xMin, xMax] x [yMin, yMax].
+            Z is set to zMin.
+            """
+            if total_count <= 1:
+                return (0.5 * (xMin + xMax), 0.5 * (yMin + yMax), zMin)
 
-    #     def IFCObjectTypes(ifc_file):
-    #         products = IFCObjects(ifc_file)
-    #         obj_types = []
-    #         for product in products:
-    #             obj_types.append(product.is_a())  
-    #         obj_types = list(set(obj_types))
-    #         obj_types.sort()
-    #         return obj_types
+            cols = max(1, int(math.ceil(math.sqrt(total_count))))
+            rows = max(1, int(math.ceil(float(total_count) / float(cols))))
 
-    #     def IFCRelationshipTypes(ifc_file):
-    #         rel_types = [ifc_rel.is_a() for ifc_rel in ifc_file.by_type("IfcRelationship")]
-    #         rel_types = list(set(rel_types))
-    #         rel_types.sort()
-    #         return rel_types
+            col = index % cols
+            row = index // cols
 
-    #     def IFCRelationships(ifc_file, include=[], exclude=[]):
-    #         include = [s.lower() for s in include]
-    #         exclude = [s.lower() for s in exclude]
-    #         rel_types = [ifc_rel.is_a() for ifc_rel in ifc_file.by_type("IfcRelationship")]
-    #         rel_types = list(set(rel_types))
-    #         relationships = []
-    #         for ifc_rel in ifc_file.by_type("IfcRelationship"):
-    #             rel_type = ifc_rel.is_a().lower()
-    #             if rel_type in exclude:
-    #                 continue
-    #             if rel_type in include or len(include) == 0:
-    #                 relationships.append(ifc_rel)
-    #         return relationships
+            x = xMin if cols == 1 else xMin + (float(col) / float(cols - 1)) * (xMax - xMin)
+            y = yMin if rows == 1 else yMin + (float(row) / float(rows - 1)) * (yMax - yMin)
+            z = zMin
+            return (x, y, z)
 
-    #     def get_psets(entity):
-    #         # Initialize the PSET dictionary for this entity
-    #         psets = {}
-            
-    #         # Check if the entity has a GlobalId
-    #         if not hasattr(entity, 'GlobalId'):
-    #             raise ValueError("The provided entity does not have a GlobalId.")
-            
-    #         # Get the property sets related to this entity
-    #         for definition in entity.IsDefinedBy:
-    #             if definition.is_a('IfcRelDefinesByProperties'):
-    #                 property_set = definition.RelatingPropertyDefinition
-                    
-    #                 # Check if it is a property set
-    #                 if not property_set == None:
-    #                     if property_set.is_a('IfcPropertySet'):
-    #                         pset_name = "IFC_"+property_set.Name
-                            
-    #                         # Dictionary to hold individual properties
-    #                         properties = {}
-                            
-    #                         # Iterate over the properties in the PSET
-    #                         for prop in property_set.HasProperties:
-    #                             if prop.is_a('IfcPropertySingleValue'):
-    #                                 # Get the property name and value
-    #                                 prop_name = "IFC_"+prop.Name
-    #                                 prop_value = prop.NominalValue.wrappedValue if prop.NominalValue else None
-    #                                 properties[prop_name] = prop_value
-                            
-    #                         # Add this PSET to the dictionary for this entity
-    #                         psets[pset_name] = properties
-    #         return psets
-        
-    #     def get_color_transparency_material(entity):
-    #         import random
+        def _collect_lightweight_entities():
+            include_set = {s.lower() for s in includeTypes}
+            exclude_set = {s.lower() for s in excludeTypes}
 
-    #         # Set default Material Name and ID
-    #         material_list = []
-    #         # Set default transparency based on entity type or material
-    #         default_transparency = 0.0
-            
-    #         # Check if the entity is an opening or made of glass
-    #         is_a = entity.is_a().lower()
-    #         if "opening" in is_a or "window" in is_a or "door" in is_a or "space" in is_a:
-    #             default_transparency = 0.7
-    #         elif "space" in is_a:
-    #             default_transparency = 0.8
-            
-    #         # Check if the entity has constituent materials (e.g., glass)
-    #         else:
-    #             # Check for associated materials (ConstituentMaterial or direct material assignment)
-    #             materials_checked = False
-    #             if hasattr(entity, 'HasAssociations'):
-    #                 for rel in entity.HasAssociations:
-    #                     if rel.is_a('IfcRelAssociatesMaterial'):
-    #                         material = rel.RelatingMaterial
-    #                         if material.is_a('IfcMaterial') and 'glass' in material.Name.lower():
-    #                             default_transparency = 0.5
-    #                             materials_checked = True
-    #                         elif material.is_a('IfcMaterialLayerSetUsage'):
-    #                             material_layers = material.ForLayerSet.MaterialLayers
-    #                             for layer in material_layers:
-    #                                 material_list.append(layer.Material.Name)
-    #                                 if 'glass' in layer.Material.Name.lower():
-    #                                     default_transparency = 0.5
-    #                                     materials_checked = True
-                                        
-    #             # Check for ConstituentMaterial if available
-    #             if hasattr(entity, 'HasAssociations') and not materials_checked:
-    #                 for rel in entity.HasAssociations:
-    #                     if rel.is_a('IfcRelAssociatesMaterial'):
-    #                         material = rel.RelatingMaterial
-    #                         if material.is_a('IfcMaterialConstituentSet'):
-    #                             for constituent in material.MaterialConstituents:
-    #                                 material_list.append(constituent.Material.Name)
-    #                                 if 'glass' in constituent.Material.Name.lower():
-    #                                     default_transparency = 0.5
-    #                                     materials_checked = True
+            entities = []
 
-    #             # Check if the entity has ShapeAspects with associated materials or styles
-    #             if hasattr(entity, 'HasShapeAspects') and not materials_checked:
-    #                 for shape_aspect in entity.HasShapeAspects:
-    #                     if hasattr(shape_aspect, 'StyledByItem') and shape_aspect.StyledByItem:
-    #                         for styled_item in shape_aspect.StyledByItem:
-    #                             for style in styled_item.Styles:
-    #                                 if style.is_a('IfcSurfaceStyle'):
-    #                                     for surface_style in style.Styles:
-    #                                         if surface_style.is_a('IfcSurfaceStyleRendering'):
-    #                                             transparency = getattr(surface_style, 'Transparency', default_transparency)
-    #                                             if transparency > 0:
-    #                                                 default_transparency = transparency
+            for t in ["IfcProduct", "IfcSpatialStructureElement", "IfcSpace", "IfcPort", "IfcGroup", "IfcSystem"]:
+                try:
+                    entities.extend(file.by_type(t))
+                except Exception:
+                    continue
 
-    #         # Try to get the actual color and transparency if defined
-    #         if hasattr(entity, 'Representation') and entity.Representation:
-    #             for rep in entity.Representation.Representations:
-    #                 for item in rep.Items:
-    #                     if hasattr(item, 'StyledByItem') and item.StyledByItem:
-    #                         for styled_item in item.StyledByItem:
-    #                             if hasattr(styled_item, 'Styles'):
-    #                                 for style in styled_item.Styles:
-    #                                     if style.is_a('IfcSurfaceStyle'):
-    #                                         for surface_style in style.Styles:
-    #                                             if surface_style.is_a('IfcSurfaceStyleRendering'):
-    #                                                 color = surface_style.SurfaceColour
-    #                                                 transparency = getattr(surface_style, 'Transparency', default_transparency)
-    #                                                 return (color.Red*255, color.Green*255, color.Blue*255), transparency, material_list
-            
-    #         # If no color is defined, return a consistent random color based on the entity type
-    #         if "wall" in is_a:
-    #             color = (175, 175, 175)
-    #         elif "slab" in is_a:
-    #             color = (200, 200, 200)
-    #         elif "space" in is_a:
-    #             color = (250, 250, 250)
-    #         else:
-    #             random.seed(hash(is_a))
-    #             color = (random.random(), random.random(), random.random())
-            
-    #         return color, default_transparency, material_list
+            # Deduplicate by STEP id
+            dedup = {}
+            for entity in entities:
+                eid = _entity_id(entity)
+                if eid is None:
+                    continue
+                dedup[eid] = entity
 
-    #     def vertexByIFCObject(ifc_object, object_types, restrict=False):
-    #         settings = ifcopenshell.geom.settings()
-    #         settings.set(settings.USE_WORLD_COORDS,True)
-    #         try:
-    #             shape = ifcopenshell.geom.create_shape(settings, ifc_object)
-    #         except:
-    #             shape = None
-    #         if shape or restrict == False: #Only add vertices of entities that have 3D geometries.
-    #             obj_id = ifc_object.id()
-    #             psets = ifcopenshell.util.element.get_psets(ifc_object)
-    #             obj_type = ifc_object.is_a()
-    #             obj_type_id = object_types.index(obj_type)
-    #             name = "Untitled"
-    #             LongName = "Untitled"
-    #             try:
-    #                 name = ifc_object.Name
-    #             except:
-    #                 name = "Untitled"
-    #             try:
-    #                 LongName = ifc_object.LongName
-    #             except:
-    #                 LongName = name
+            entities = list(dedup.values())
 
-    #             if name == None:
-    #                 name = "Untitled"
-    #             if LongName == None:
-    #                 LongName = "Untitled"
-    #             label = str(obj_id)+" "+LongName+" ("+obj_type+" "+str(obj_type_id)+")"
-    #             try:
-    #                 grouped_verts = ifcopenshell.util.shape.get_vertices(shape.geometry)
-    #                 vertices = [Vertex.ByCoordinates(list(coords)) for coords in grouped_verts]
-    #                 centroid = Vertex.Centroid(vertices)
-    #             except:
-    #                 x = random.uniform(xMin,xMax)
-    #                 y = random.uniform(yMin,yMax)
-    #                 z = random.uniform(zMin,zMax)
-    #                 centroid = Vertex.ByCoordinates(x, y, z)
-                
-    #             # Store relevant information
-    #             if transferDictionaries == True:
-    #                 color, transparency, material_list = get_color_transparency_material(ifc_object)
-    #                 if color == None:
-    #                     color = "white"
-    #                 if transparency == None:
-    #                     transparency = 0
-    #                 entity_dict = {
-    #                     "TOPOLOGIC_id": str(Topology.UUID(centroid)),
-    #                     "TOPOLOGIC_name": getattr(ifc_object, 'Name', "Untitled"),
-    #                     "TOPOLOGIC_type": Topology.TypeAsString(centroid),
-    #                     "TOPOLOGIC_color": color,
-    #                     "TOPOLOGIC_opacity": 1.0 - transparency,
-    #                     "IFC_global_id": getattr(ifc_object, 'GlobalId', 0),
-    #                     "IFC_name": getattr(ifc_object, 'Name', "Untitled"),
-    #                     "IFC_type": ifc_object.is_a(),
-    #                     "IFC_material_list": material_list,
-    #                 }
-    #                 topology_dict = Dictionary.ByPythonDictionary(entity_dict)
-    #                 # Get PSETs dictionary
-    #                 pset_python_dict = get_psets(ifc_object)
-    #                 pset_dict = Dictionary.ByPythonDictionary(pset_python_dict)
-    #                 topology_dict = Dictionary.ByMergedDictionaries([topology_dict, pset_dict])
-    #                 if storeBREP == True or useInternalVertex == True:
-    #                     shape_topology = None
-    #                     if hasattr(ifc_object, "Representation") and ifc_object.Representation:
-    #                         for rep in ifc_object.Representation.Representations:
-    #                             if rep.is_a("IfcShapeRepresentation"):
-    #                                 try:
-    #                                     # Generate the geometry for this entity
-    #                                     shape = ifcopenshell.geom.create_shape(settings, ifc_object)
-    #                                     # Get grouped vertices and grouped faces     
-    #                                     grouped_verts = shape.geometry.verts
-    #                                     verts = [ [grouped_verts[i], grouped_verts[i + 1], grouped_verts[i + 2]] for i in range(0, len(grouped_verts), 3)]
-    #                                     grouped_edges = shape.geometry.edges
-    #                                     edges = [[grouped_edges[i], grouped_edges[i + 1]] for i in range(0, len(grouped_edges), 2)]
-    #                                     grouped_faces = shape.geometry.faces
-    #                                     faces = [ [grouped_faces[i], grouped_faces[i + 1], grouped_faces[i + 2]] for i in range(0, len(grouped_faces), 3)]
-    #                                     shape_topology = Topology.ByGeometry(verts, edges, faces, silent=True)
-    #                                     if not shape_topology == None:
-    #                                         if removeCoplanarFaces == True:
-    #                                             shape_topology = Topology.RemoveCoplanarFaces(shape_topology, epsilon=0.0001)
-    #                                 except:
-    #                                     pass
-    #                     if not shape_topology == None and storeBREP:
-    #                         topology_dict = Dictionary.SetValuesAtKeys(topology_dict, ["brep", "brepType", "brepTypeString"], [Topology.BREPString(shape_topology), Topology.Type(shape_topology), Topology.TypeAsString(shape_topology)])
-    #                     if not shape_topology == None and useInternalVertex == True:
-    #                         centroid = Topology.InternalVertex(shape_topology)
-    #                 centroid = Topology.SetDictionary(centroid, topology_dict)
-    #             return centroid
-    #         return None
+            filtered = []
+            for entity in entities:
+                gid = _entity_global_id(entity)
+                if not gid:
+                    continue
+                if not _passes_type_filter(entity, include_set, exclude_set):
+                    continue
+                filtered.append(entity)
 
-    #     def edgesByIFCRelationships(ifc_relationships, ifc_types, vertices):
-    #         tuples = []
-    #         edges = []
+            return filtered
 
-    #         for ifc_rel in ifc_relationships:
-    #             source = None
-    #             destinations = []
-    #             if ifc_rel.is_a("IfcRelConnectsPorts"):
-    #                 source = ifc_rel.RelatingPort
-    #                 destinations = ifc_rel.RelatedPorts
-    #             elif ifc_rel.is_a("IfcRelConnectsPortToElement"):
-    #                 source = ifc_rel.RelatingPort
-    #                 destinations = [ifc_rel.RelatedElement]
-    #             elif ifc_rel.is_a("IfcRelAggregates"):
-    #                 source = ifc_rel.RelatingObject
-    #                 destinations = ifc_rel.RelatedObjects
-    #             elif ifc_rel.is_a("IfcRelNests"):
-    #                 source = ifc_rel.RelatingObject
-    #                 destinations = ifc_rel.RelatedObjects
-    #             elif ifc_rel.is_a("IfcRelAssignsToGroup"):
-    #                 source = ifc_rel.RelatingGroup
-    #                 destinations = ifc_rel.RelatedObjects
-    #             elif ifc_rel.is_a("IfcRelConnectsPathElements"):
-    #                 source = ifc_rel.RelatingElement
-    #                 destinations = [ifc_rel.RelatedElement]
-    #             elif ifc_rel.is_a("IfcRelConnectsStructuralMember"):
-    #                 source = ifc_rel.RelatingStructuralMember
-    #                 destinations = [ifc_rel.RelatedStructuralConnection]
-    #             elif ifc_rel.is_a("IfcRelContainedInSpatialStructure"):
-    #                 source = ifc_rel.RelatingStructure
-    #                 destinations = ifc_rel.RelatedElements
-    #             elif ifc_rel.is_a("IfcRelFillsElement"):
-    #                 source = ifc_rel.RelatingOpeningElement
-    #                 destinations = [ifc_rel.RelatedBuildingElement]
-    #             elif ifc_rel.is_a("IfcRelSpaceBoundary"):
-    #                 source = ifc_rel.RelatingSpace
-    #                 destinations = [ifc_rel.RelatedBuildingElement]
-    #             elif ifc_rel.is_a("IfcRelVoidsElement"):
-    #                 source = ifc_rel.RelatingBuildingElement
-    #                 destinations = [ifc_rel.RelatedOpeningElement]
-    #             elif ifc_rel.is_a("IfcRelDefinesByProperties") or ifc_rel.is_a("IfcRelAssociatesMaterial") or ifc_rel.is_a("IfcRelDefinesByType"):
-    #                 source = None
-    #                 destinations = None
-    #             else:
-    #                 print("Graph.ByIFCFile - Warning: The relationship", ifc_rel, "is not supported. Skipping.")
-    #             if source:
-    #                 sv = vertexAtKeyValue(vertices, key="IFC_global_id", value=getattr(source, 'GlobalId', 0))
-    #                 if sv:
-    #                     si = Vertex.Index(sv, vertices, tolerance=tolerance)
-    #                     if not si == None:
-    #                         for destination in destinations:
-    #                             if destination == None:
-    #                                 continue
-    #                             ev = vertexAtKeyValue(vertices, key="IFC_global_id", value=getattr(destination, 'GlobalId', 0),)
-    #                             if ev:
-    #                                 ei = Vertex.Index(ev, vertices, tolerance=tolerance)
-    #                                 if not ei == None:
-    #                                     if not([si,ei] in tuples or [ei,si] in tuples):
-    #                                         tuples.append([si,ei])
-    #                                         e = Edge.ByVertices([sv,ev])
-    #                                         d = Dictionary.ByKeysValues(["IFC_global_id", "IFC_name", "IFC_type"], [ifc_rel.id(), ifc_rel.Name, ifc_rel.is_a()])
-    #                                         e = Topology.SetDictionary(e, d)
-    #                                         edges.append(e)
-    #         return edges
-        
-    #     ifc_types = IFCObjectTypes(file)
-    #     ifc_objects = IFCObjects(file, include=includeTypes, exclude=excludeTypes)
-    #     vertices = []
-    #     for ifc_object in ifc_objects:
-    #         v = vertexByIFCObject(ifc_object, ifc_types)
-    #         if v:
-    #             vertices.append(v)
-    #     if len(vertices) > 0:
-    #         ifc_relationships = IFCRelationships(file, include=includeRels, exclude=excludeRels)
-    #         edges = edgesByIFCRelationships(ifc_relationships, ifc_types, vertices)
-    #         g = Graph.ByVerticesEdges(vertices, edges)
-    #     else:
-    #         g = None
-    #     return g
+        def _get_mesh_data_lightweight_mode():
+            entities = _collect_lightweight_entities()
+
+            vertices = []
+            vertex_dictionaries = []
+            gid_to_index = {}
+
+            total_count = len(entities)
+            for i, entity in enumerate(entities):
+                gid = _entity_global_id(entity)
+                if not gid:
+                    continue
+
+                x, y, z = _synthetic_coordinates(i, total_count)
+
+                try:
+                    v = Vertex.ByCoordinates(x, y, z)
+                except Exception:
+                    if not silent:
+                        print(f"Graph.ByIFCFile - Warning: Could not create a lightweight vertex for entity {gid}. Skipping")
+                    continue
+
+                d = _dictionary_from_ifc_entity(entity)
+
+                # Keep dictionaries separately for ByMeshData, but also set them on the
+                # vertex in case downstream code expects that.
+                if d is not None:
+                    try:
+                        v = Topology.SetDictionary(v, d)
+                    except Exception:
+                        pass
+
+                gid_to_index[gid] = len(vertices)
+                vertices.append(Vertex.Coordinates(v))
+                vertex_dictionaries.append(d)
+
+            relationships = _get_relationships(file, includeRels=includeRels, excludeRels=excludeRels)
+
+            edges = []
+            edge_dictionaries = []
+            seen_pairs = set()
+
+            for ifc_rel in relationships:
+                source, destinations = _relationship_endpoints(ifc_rel)
+                if source is None or not destinations:
+                    continue
+
+                source_gid = _entity_global_id(source)
+                if not source_gid:
+                    continue
+
+                si = gid_to_index.get(source_gid)
+                if si is None:
+                    continue
+
+                rel_dict = _relationship_dictionary(ifc_rel)
+
+                for destination in destinations:
+                    if destination is None:
+                        continue
+
+                    dest_gid = _entity_global_id(destination)
+                    if not dest_gid:
+                        continue
+
+                    ei = gid_to_index.get(dest_gid)
+                    if ei is None:
+                        continue
+
+                    if si == ei:
+                        continue
+
+                    pair = (si, ei) if si < ei else (ei, si)
+                    if pair in seen_pairs:
+                        continue
+                    seen_pairs.add(pair)
+
+                    edges.append([si, ei])
+                    edge_dictionaries.append(rel_dict)
+
+            return vertices, edges, vertex_dictionaries, edge_dictionaries
+
+        # -------------------------------------------------------------------------
+        # Execute
+        # -------------------------------------------------------------------------
+
+        if mode == "geometry":
+            vertices, gid_to_vertex, gid_to_index = _get_vertices_geometry_mode()
+            relationships = _get_relationships(file, includeRels=includeRels, excludeRels=excludeRels)
+            edges = _get_edges_geometry_mode(relationships, gid_to_vertex, gid_to_index)
+            return Graph.ByVerticesEdges(vertices, edges)
+
+        vertices, edges, vertex_dictionaries, edge_dictionaries = _get_mesh_data_lightweight_mode()
+
+        return Graph.ByMeshData(
+            vertices,
+            edges,
+            vertexDictionaries=vertex_dictionaries,
+            edgeDictionaries=edge_dictionaries,
+            tolerance=tolerance
+        )
 
     @staticmethod
     def ByIFCPath(path,
@@ -4684,7 +4590,11 @@ class Graph:
                   useInternalVertex=False,
                   storeBREP=False,
                   removeCoplanarFaces=False,
-                  xMin=-0.5, yMin=-0.5, zMin=-0.5, xMax=0.5, yMax=0.5, zMax=0.5):
+                  xMin=-0.5, yMin=-0.5, zMin=-0.5, xMax=0.5, yMax=0.5, zMax=0.5,
+                  epsilon: float = 0.0001,
+                  tolerance: float = 0.0001,
+                  silent: bool = False,
+                  mode="lightweight"):
         """
         Create a Graph from an IFC path. This code is partially based on code from Bruno Postle.
 
@@ -4720,6 +4630,19 @@ class Graph:
             The desired maximum value to assign for a vertex's Y coordinate. Default is 0.5.
         zMax : float, optional
             The desired maximum value to assign for a vertex's Z coordinate. Default is 0.5.
+        epsilon : float , optional
+            Desired epsilon. Default is 0.0001.
+        tolerance : float , optional
+            Desired tolerance. Default is 0.0001.
+        silent : bool , optional
+            If set to True, warning messages are suppressed. Default is False.
+        mode : str , optional
+            Import mode. Options are:
+            - "geometry": build representative vertices from full imported Topologic geometry
+            - "lightweight": build representative vertices directly from IFC entities and
+            build the graph through Graph.ByMeshData(...)
+            Default is "lightweight".
+
         
         Returns
         -------
@@ -4750,11 +4673,13 @@ class Graph:
                 warnings.warn("Graph.ByIFCPath - Error: Could not import ifcopenshell. Please try to install ifcopenshell manually. Returning None.")
                 return None
         if not path:
-            print("Graph.ByIFCPath - Error: the input path is not a valid path. Returning None.")
+            if not silent:
+                print("Graph.ByIFCPath - Error: the input path is not a valid path. Returning None.")
             return None
         ifc_file = ifcopenshell.open(path)
         if not ifc_file:
-            print("Graph.ByIFCPath - Error: Could not open the IFC file. Returning None.")
+            if not silent:
+                print("Graph.ByIFCPath - Error: Could not open the IFC file. Returning None.")
             return None
         return Graph.ByIFCFile(ifc_file,
                                includeTypes=includeTypes,
@@ -4765,7 +4690,11 @@ class Graph:
                                useInternalVertex=useInternalVertex,
                                storeBREP=storeBREP,
                                removeCoplanarFaces=removeCoplanarFaces,
-                               xMin=xMin, yMin=yMin, zMin=zMin, xMax=xMax, yMax=yMax, zMax=zMax)
+                               xMin=xMin, yMin=yMin, zMin=zMin, xMax=xMax, yMax=yMax, zMax=zMax,
+                               epsilon=epsilon,
+                               tolerance=tolerance,
+                               silent=silent,
+                               mode=mode)
 
     @staticmethod
     def ByJSONDictionary(

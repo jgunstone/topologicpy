@@ -17,6 +17,7 @@
 import topologic_core as topologic
 import os
 import warnings
+from typing import Iterable, Callable, List
 
 try:
     import numpy as np
@@ -144,6 +145,133 @@ class Cluster():
             vertices.append(Vertex.ByCoordinates(x_return[i], y_return[i], z_return[i]))
         return Cluster.ByTopologies(vertices)
     
+
+    @staticmethod
+    def ByFunction(topologies: list,
+                function: Callable,
+                mantissa: int = 6,
+                tolerance: float = 0.0001,
+                silent: bool = False):
+        """
+        Clusters the list of input topologies based on an input evaluation function.
+
+        The input function may return:
+            - numeric values (int, float) -> clustered using tolerance-based matching
+            - booleans                   -> clustered by exact value
+            - strings                    -> clustered by exact value
+            - None                       -> clustered by exact value
+            - other values               -> clustered by exact value where possible
+
+        Parameters
+        ----------
+        topologies : list
+            The list of input topologies to be clustered.
+        function : callable
+            The callable evaluation function that determines the category of each topology.
+            The function must take three inputs only in the following order:
+            1. A single topology
+            2. A "mantissa" (named input)
+            3. A "tolerance" (named input)
+
+            e.g. compute_value(topology, mantissa=6, tolerance=0.0001)
+
+        mantissa : int , optional
+            The desired length of the mantissa. Default is 6.
+        tolerance : float , optional
+            The desired tolerance. Default is 0.0001.
+        silent : bool , optional
+            If set to True, error and warning messages are suppressed. Default is False.
+
+        Returns
+        -------
+        list
+            The list of clusters. Each item in the list is a list of topologies that
+            return the same or equivalent value from the evaluation function.
+        """
+        from numbers import Number
+
+        def warn(message):
+            if not silent:
+                print(message)
+
+        def is_numeric(value):
+            return isinstance(value, Number) and not isinstance(value, bool)
+
+        def normalize_numeric(value):
+            return round(float(value), mantissa)
+
+        if not isinstance(topologies, list):
+            warn("Cluster.ByFunction - Error: The input topologies parameter is not a valid list. Returning None.")
+            return None
+        if not callable(function):
+            warn("Cluster.ByFunction - Error: The input function parameter is not callable. Returning None.")
+            return None
+        if len(topologies) < 1:
+            return []
+
+        valid_topologies = []
+        values = []
+
+        for i, topology in enumerate(topologies):
+            try:
+                value = function(topology, mantissa=mantissa, tolerance=tolerance)
+                if is_numeric(value):
+                    value = normalize_numeric(value)
+                values.append(value)
+                valid_topologies.append(topology)
+            except Exception as e:
+                warn(f"Cluster.ByFunction - Warning: Could not evaluate topology at index {i}. Skipping it. {e}")
+
+        if len(valid_topologies) < 1:
+            return []
+
+        # Build sorted unique keys.
+        numeric_keys = sorted(set(v for v in values if is_numeric(v)))
+        exact_keys = []
+        seen = set()
+
+        for v in values:
+            if is_numeric(v):
+                continue
+            # preserve first-seen order for exact-match types
+            try:
+                marker = ("hashable", v)
+                if marker not in seen:
+                    seen.add(marker)
+                    exact_keys.append(v)
+            except Exception:
+                marker = ("repr", repr(v))
+                if marker not in seen:
+                    seen.add(marker)
+                    exact_keys.append(v)
+
+        keys = numeric_keys + exact_keys
+        clusters = [[] for _ in keys]
+
+        for topology, value in zip(valid_topologies, values):
+            placed = False
+
+            if is_numeric(value):
+                for i, key in enumerate(numeric_keys):
+                    if abs(value - key) <= tolerance:
+                        clusters[i].append(topology)
+                        placed = True
+                        break
+            else:
+                offset = len(numeric_keys)
+                for i, key in enumerate(exact_keys):
+                    if value == key:
+                        clusters[offset + i].append(topology)
+                        placed = True
+                        break
+
+            # Fallback safety
+            if not placed:
+                keys.append(value)
+                clusters.append([topology])
+
+        return clusters
+
     @staticmethod
     def ByTopologies(*topologies, transferDictionaries: bool = False, silent=False):
         """
@@ -1051,7 +1179,7 @@ class Cluster():
         randomSeed : int , optional
             RNG seed.
         mantissa : int , optional
-            Rounding precision when storing centroid.
+            The desired length of the mantissa. Default is 6.
         tolerance : float , optional
             Tolerance (kept for API consistency).
         silent : bool , optional
