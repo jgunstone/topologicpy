@@ -205,6 +205,254 @@ class Wire():
             return edge
         cv = Edge.EndVertex(norm)
         return Wire.Arc(sv, cv, ev, sides=sides, close=close, tolerance=tolerance, silent=True) # we want to force suppress errors and warnings here
+
+
+
+    @staticmethod
+    def Bisectors(wire, offset: float = 1.0, offsetKey: str = "offset", stepOffsetA: float = 0, stepOffsetB: float = 0, stepOffsetKeyA: str = "stepOffsetA", stepOffsetKeyB: str = "stepOffsetB", reverse: bool = False, transferDictionaries: bool = False, epsilon: float = 0.01, tolerance: float = 0.0001,  silent: bool = False, numWorkers: int = None):
+        """
+        Returns opnly the bisectors Created by an offset wire from the input wire. See Wire.ByOffset. A positive offset value results in an offset to the interior of an anti-clockwise wire.
+
+        Parameters
+        ----------
+        wire : topologic_core.Wire
+            The input wire.
+        offset : float , optional
+            The desired offset distance. Default is 1.0.
+        offsetKey : str , optional
+            The edge dictionary key under which to find the offset value. If a value cannot be found, the offset input parameter value is used instead. Default is "offset".
+        stepOffsetA : float , optional
+            The amount to offset along the previous edge when transitioning between parallel edges with different offsets. Default is 0.
+        stepOffsetB : float , optional
+            The amount to offset along the next edge when transitioning between parallel edges with different offsets. Default is 0.
+        stepOffsetKeyA : str , optional
+            The vertex dictionary key under which to find the step offset A value. If a value cannot be found, the stepOffsetA input parameter value is used instead. Default is "stepOffsetA".
+        stepOffsetKeyB : str , optional
+            The vertex dictionary key under which to find the step offset B value. If a value cannot be found, the stepOffsetB input parameter value is used instead. Default is "stepOffsetB".
+        reverse : bool , optional
+            If set to True, the direction of offsets is reversed. Otherwise, it is not. Default is False.
+        transferDictionaries : bool , optional
+            If set to True, the dictionaries of the original wire, its edges, and its vertices are transfered to the new wire. Otherwise, they are not. Default is False.
+        epsilon : float , optional
+            The desired epsilon (another form of tolerance for shortest edge to remove). Default is 0.01. (This is set to a larger number as it was found to work better)
+        tolerance : float , optional
+            The desired tolerance. Default is 0.0001.
+        silent : bool , optional
+            If set to True, error and warning messages are suppressed. Default is False.
+        numWorkers : int , optional
+            Number of workers run in parallel to process. If you set it to 1, no parallel processing will take place.
+            The default is None which causes the algorithm to use twice the number of cpu cores in the host computer.
+
+        
+        Returns
+        -------
+        topologic_core.Wire
+            The created wire.
+
+        """
+        from topologicpy.Vertex import Vertex
+        from topologicpy.Edge import Edge
+        from topologicpy.Face import Face
+        from topologicpy.Dictionary import Dictionary
+        from topologicpy.Cluster import Cluster
+        from topologicpy.Topology import Topology
+        from topologicpy.Vector import Vector
+        from topologicpy.Helper import Helper        
+
+        if not Topology.IsInstance(wire, "Wire"):
+            if not silent:
+                print("Wire.ByOffset - Error: The input wire parameter is not a valid wire. Returning None.")
+                return None
+        
+        if reverse == True:
+            fac = -1
+        else:
+            fac = 1
+        bisectors = True
+        origin = Topology.Centroid(wire)
+        temp_vertices = [Topology.Vertices(wire)[0], Topology.Vertices(wire)[1], Topology.Centroid(wire)]
+        temp_face = Face.ByWire(Wire.ByVertices(temp_vertices, close=True, tolerance=tolerance), silent=silent)
+        normal = Face.Normal(temp_face)
+        flat_wire = Topology.Flatten(wire, direction=normal, origin=origin)
+        original_edges = Topology.Edges(wire)
+        edges = Topology.Edges(flat_wire)
+        offsets = []
+        offset_edges = []
+        final_vertices = []
+        bisectors_list = []
+        edge_dictionaries = []
+        for i, edge in enumerate(edges):
+            d = Topology.Dictionary(original_edges[i])
+            d_offset = Dictionary.ValueAtKey(d, key=offsetKey, defaultValue=offset)
+            d_offset = d_offset*fac
+            offsets.append(d_offset)
+            offset_edge = Edge.ByOffset2D(edge, d_offset)
+            offset_edges.append(offset_edge)
+        for i in range(len(edges)):
+            o_edge_a = offset_edges[i]
+            v_a = Edge.StartVertex(edges[i])
+            if i == 0:
+                if Wire.IsClosed(wire) == False:
+                    v1 = Edge.StartVertex(offset_edges[0])
+                    if transferDictionaries == True:
+                        v1 = Topology.SetDictionary(v1, Topology.Dictionary(v_a), silent=True)
+                        edge_dictionaries.append(Topology.Dictionary(edges[i]))
+                    final_vertices.append(v1)
+                    if bisectors == True:
+                        bisectors_list.append(Edge.ByVertices(v_a, v1))
+                else:
+                    prev_edge = offset_edges[-1]
+                    v1 = Edge.Intersect2D(prev_edge, o_edge_a, silent=True)
+                    if Topology.IsInstance(v1, "Vertex"):
+                        if bisectors == True:
+                            bisectors_list.append(Edge.ByVertices(v_a, v1))
+                        if transferDictionaries == True:
+                            v1 = Topology.SetDictionary(v1, Topology.Dictionary(v_a), silent=True)
+                            edge_dictionaries.append(Topology.Dictionary(edges[i]))
+                        final_vertices.append(v1)
+                    else:
+                        connection = Edge.Connection(prev_edge, o_edge_a)
+                        if Topology.IsInstance(connection, "Edge"):
+                            d = Topology.Dictionary(v_a)
+                            d_stepOffsetA = Dictionary.ValueAtKey(d, stepOffsetKeyA)
+                            if d_stepOffsetA == None:
+                                d_stepOffsetA = stepOffsetA
+                            d_stepOffsetB = Dictionary.ValueAtKey(d, stepOffsetKeyB)
+                            if d_stepOffsetB == None:
+                                d_stepOffsetB = stepOffsetB
+                            v1_1 = Topology.TranslateByDirectionDistance(Edge.EndVertex(prev_edge),
+                                                                        direction = Vector.Reverse(Edge.Direction(prev_edge)),
+                                                                        distance = d_stepOffsetA)
+                                                                                                    
+                            v1_2 = Topology.TranslateByDirectionDistance(Edge.StartVertex(o_edge_a),
+                                                                        direction = Edge.Direction(o_edge_a),
+                                                                        distance = d_stepOffsetB)
+                            bisectors_list.append(Edge.ByVertices(v_a, v1_1))
+                            bisectors_list.append(Edge.ByVertices(v_a, v1_2))
+                            final_vertices.append(v1_1)
+                            final_vertices.append(v1_2)
+                            if transferDictionaries == True:
+                                v1_1 = Topology.SetDictionary(v1_1, Topology.Dictionary(v_a), silent=True)
+                                v1_2 = Topology.SetDictionary(v1_2, Topology.Dictionary(v_a), silent=True)
+                                edge_dictionaries.append(Topology.Dictionary(v_a))
+                                edge_dictionaries.append(Topology.Dictionary(edges[i]))
+            else:
+                prev_edge = offset_edges[i-1]
+                v1 = Edge.Intersect2D(prev_edge, o_edge_a, silent=True)
+                if Topology.IsInstance(v1, "Vertex"):
+                    if bisectors == True:
+                        bisectors_list.append(Edge.ByVertices(v_a, v1))
+                    if transferDictionaries == True:
+                        d_temp = Topology.Dictionary(v_a)
+                        v1 = Topology.SetDictionary(v1, Topology.Dictionary(v_a), silent=True)
+                        edge_dictionaries.append(Topology.Dictionary(edges[i]))
+                    final_vertices.append(v1)
+                else:
+                    connection = Edge.Connection(prev_edge, o_edge_a)
+                    if Topology.IsInstance(connection, "Edge"):
+                        d = Topology.Dictionary(v_a)
+                        d_stepOffsetA = Dictionary.ValueAtKey(d, stepOffsetKeyA)
+                        if d_stepOffsetA == None:
+                            d_stepOffsetA = stepOffsetA
+                        d_stepOffsetB = Dictionary.ValueAtKey(d, stepOffsetKeyB)
+                        if d_stepOffsetB == None:
+                            d_stepOffsetB = stepOffsetB
+                        v1_1 = Topology.TranslateByDirectionDistance(Edge.EndVertex(prev_edge),
+                                                                     direction = Vector.Reverse(Edge.Direction(prev_edge)),
+                                                                     distance = d_stepOffsetA)
+                                                                                                
+                        v1_2 = Topology.TranslateByDirectionDistance(Edge.StartVertex(o_edge_a),
+                                                                     direction = Edge.Direction(o_edge_a),
+                                                                     distance = d_stepOffsetB)
+                        if transferDictionaries == True:
+                            v1_1 = Topology.SetDictionary(v1_1, Topology.Dictionary(v_a), silent=True)
+                            v1_2 = Topology.SetDictionary(v1_2, Topology.Dictionary(v_a), silent=True)
+                            edge_dictionaries.append(Topology.Dictionary(v_a))
+                            edge_dictionaries.append(Topology.Dictionary(edges[i]))
+                        bisectors_list.append(Edge.ByVertices(v_a, v1_1))
+                        bisectors_list.append(Edge.ByVertices(v_a, v1_2))
+                        final_vertices.append(v1_1)
+                        final_vertices.append(v1_2)
+        v_a = Edge.EndVertex(edges[-1])
+        if Wire.IsClosed(wire) == False:
+            v1 = Edge.EndVertex(offset_edges[-1])
+            final_vertices.append(v1)
+            if transferDictionaries == True:
+                v1 = Topology.SetDictionary(v1, Topology.Dictionary(v_a), silent=True)
+            if bisectors == True:
+                bisectors_list.append(Edge.ByVertices(v_a, v1))
+        return bisectors_list
+        # return_wire = Wire.ByVertices(final_vertices, close=Wire.IsClosed(wire), tolerance=tolerance, silent=silent)
+        # wire_edges = [Edge.SetLength(w_e, Edge.Length(w_e)+(2*epsilon), bothSides=True) for w_e in Topology.Edges(return_wire)]
+        # return_wire_edges = Topology.Edges(return_wire)
+        # if transferDictionaries == True:
+        #     if not len(wire_edges) == len(edge_dictionaries):
+        #         if not silent:
+        #                 print("Length of Wire Edges:", len(wire_edges))
+        #                 print("Length of Edge Dictionaries:", len(edge_dictionaries))
+        #                 print("Wire.ByOffset - Warning: The resulting wire is not well-formed, offsets may not be applied correctly. Please check your offsets.")
+        #     for i, wire_edge in enumerate(wire_edges):
+        #         if len(edge_dictionaries) > 0:
+        #             temp_dictionary = edge_dictionaries[min(i,len(edge_dictionaries)-1)]
+        #             wire_edge = Topology.SetDictionary(wire_edge, temp_dictionary, silent=True)
+        #             return_wire_edges[i] = Topology.SetDictionary(return_wire_edges[i], temp_dictionary, silent=True)
+        # if bisectors == True:
+        #     temp_return_wire = Topology.SelfMerge(Cluster.ByTopologies(wire_edges+bisectors_list))
+        #     if transferDictionaries == True:
+        #         sel_vertices = Topology.Vertices(return_wire)
+        #         sel_vertices += Topology.Vertices(flat_wire)
+        #         edges = Topology.Edges(return_wire)
+        #         sel_edges = []
+        #         for edge in edges:
+        #             d = Topology.Dictionary(edge)
+        #             c = Topology.Centroid(edge)
+        #             c = Topology.SetDictionary(c, d, silent=True)
+        #             sel_edges.append(c)
+        #         temp_return_wire = Topology.TransferDictionariesBySelectors(temp_return_wire, sel_vertices, tranVertices=True, numWorkers=numWorkers)
+        #         temp_return_wire = Topology.TransferDictionariesBySelectors(temp_return_wire, sel_edges, tranEdges=True, numWorkers=numWorkers)
+                
+        #     return_wire = temp_return_wire
+        
+        # if not Topology.IsInstance(return_wire, "Wire"):
+        #     if not silent:
+        #         print("Wire.ByOffset - Warning: The resulting wire is not well-formed, please check your offsets.")
+        # else:
+        #     if not Wire.IsManifold(return_wire) and bisectors == False:
+        #         if not silent:
+        #             print("Wire.ByOffset - Warning: The resulting wire is non-manifold, please check your offsets.")
+        #             print("Wire.ByOffset - Warning: Pursuing a workaround, but it might take longer to complete.")
+                
+        #         temp_wire = Topology.SelfMerge(Cluster.ByTopologies(wire_edges))
+        #         cycles = Wire.Cycles(temp_wire, maxVertices = len(final_vertices))
+        #         if len(cycles) > 0:
+        #             distances = []
+        #             for cycle in cycles:
+        #                 cycle_centroid = Topology.Centroid(cycle)
+        #                 distance = Vertex.Distance(origin, cycle_centroid)
+        #                 distances.append(distance)
+        #             cycles = Helper.Sort(cycles, distances)
+        #             # Get the top three or less
+        #             cycles = cycles[:min(3, len(cycles))]
+        #             areas = [Face.Area(Face.ByWire(cycle)) for cycle in cycles]
+        #             cycles = Helper.Sort(cycles, areas)
+        #             return_cycle = Wire.Reverse(cycles[-1])
+        #             test_cycle = Wire.Simplify(return_cycle, tolerance=epsilon)
+        #             if Topology.IsInstance(test_cycle, "Wire"):
+        #                 return_cycle = test_cycle
+        #             return_cycle = Wire.RemoveCollinearEdges(return_cycle, silent=silent)
+        #             sel_edges = []
+        #             for temp_edge in wire_edges:
+        #                 x = Topology.Centroid(temp_edge)
+        #                 d = Topology.Dictionary(temp_edge)
+        #                 x = Topology.SetDictionary(x, d, silent=True)
+        #                 sel_edges.append(x)
+        #             return_cycle = Topology.TransferDictionariesBySelectors(return_cycle, Topology.Vertices(return_wire), tranVertices=True, tolerance=tolerance, numWorkers=numWorkers)
+        #             return_cycle = Topology.TransferDictionariesBySelectors(return_cycle, sel_edges, tranEdges=True, tolerance=tolerance, numWorkers=numWorkers)
+        #             return_wire = return_cycle
+        # return_wire = Topology.Unflatten(return_wire, direction=normal, origin=origin)
+        # if transferDictionaries == True:
+        #     return_wire = Topology.SetDictionary(return_wire, Topology.Dictionary(wire), silent=True)
+        # return return_wire
     
     @staticmethod
     def BoundingRectangle(topology, optimize: int = 0, mantissa: int = 6, tolerance: float = 0.0001, silent: bool = False):
@@ -347,6 +595,50 @@ class Wire():
         boundingRectangle = Topology.SetDictionary(boundingRectangle, dictionary)
         return boundingRectangle
 
+    # @staticmethod
+    # def ByEdges(edges: list, orient: bool = False, tolerance: float = 0.0001, silent: bool = False):
+    #     """
+    #     Creates a wire from the input list of edges.
+
+    #     Parameters
+    #     ----------
+    #     edges : list
+    #         The input list of edges.
+    #     orient : bool , optional
+    #         If set to True the edges are oriented head to tail. Otherwise, they are not. Default is False.
+    #     tolerance : float , optional
+    #         The desired tolerance. Default is 0.0001.
+    #     silent : bool , optional
+    #         If set to True, error and warning messages are suppressed. Default is False.
+
+    #     Returns
+    #     -------
+    #     topologic_core.Wire
+    #         The created wire.
+
+    #     """
+    #     from topologicpy.Cluster import Cluster
+    #     from topologicpy.Topology import Topology
+
+    #     if not isinstance(edges, list):
+    #         return None
+    #     edgeList = [x for x in edges if Topology.IsInstance(x, "Edge")]
+    #     if len(edgeList) == 0:
+    #         if not silent:
+    #             print("Wire.ByEdges - Error: The input edges list does not contain any valid edges. Returning None.")
+    #         return None
+    #     if len(edgeList) == 1:
+    #         wire = topologic.Wire.ByEdges(edgeList) # Hook to Core
+    #     else:
+    #         wire = Topology.SelfMerge(Cluster.ByTopologies(edgeList), tolerance=tolerance)
+    #     if not Topology.IsInstance(wire, "Wire"):
+    #         if not silent:
+    #             print("Wire.ByEdges - Error: The operation failed. Returning None.")
+    #         wire = None
+    #     if Wire.IsManifold(wire):
+    #         if orient == True:
+    #             wire = Wire.OrientEdges(wire, Wire.StartVertex(wire), tolerance=tolerance)
+    #     return wire
     @staticmethod
     def ByEdges(edges: list, orient: bool = False, tolerance: float = 0.0001, silent: bool = False):
         """
@@ -371,27 +663,73 @@ class Wire():
         """
         from topologicpy.Cluster import Cluster
         from topologicpy.Topology import Topology
+        from topologicpy.Edge import Edge
+        from topologicpy.Vertex import Vertex
+        import inspect
+
+        def edgesMatch(e1, e2, tolerance=0.0001):
+            """
+            Returns True if the two edges have the same end vertices
+            within tolerance, regardless of orientation.
+            """
+            s1 = Edge.StartVertex(e1)
+            e1v = Edge.EndVertex(e1)
+            s2 = Edge.StartVertex(e2)
+            e2v = Edge.EndVertex(e2)
+
+            forward_match = Vertex.Distance(s1, s2) <= tolerance and Vertex.Distance(e1v, e2v) <= tolerance
+            reverse_match = Vertex.Distance(s1, e2v) <= tolerance and Vertex.Distance(e1v, s2) <= tolerance
+            return forward_match or reverse_match
 
         if not isinstance(edges, list):
             return None
+
         edgeList = [x for x in edges if Topology.IsInstance(x, "Edge")]
         if len(edgeList) == 0:
             if not silent:
                 print("Wire.ByEdges - Error: The input edges list does not contain any valid edges. Returning None.")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                print('caller name:', calframe[1][3])
             return None
+
         if len(edgeList) == 1:
-            wire = topologic.Wire.ByEdges(edgeList) # Hook to Core
+            wire = topologic.Wire.ByEdges(edgeList)  # Hook to Core
         else:
             wire = Topology.SelfMerge(Cluster.ByTopologies(edgeList), tolerance=tolerance)
+
         if not Topology.IsInstance(wire, "Wire"):
             if not silent:
                 print("Wire.ByEdges - Error: The operation failed. Returning None.")
-            wire = None
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                print('caller name:', calframe[1][3])
+            return None
+
+        # Transfer dictionaries from input edges to resulting wire edges
+        resultEdges = Topology.Edges(wire)
+        if resultEdges and len(resultEdges) > 0:
+            newEdges = []
+            for resultEdge in resultEdges:
+                updatedEdge = resultEdge
+                for sourceEdge in edgeList:
+                    if edgesMatch(resultEdge, sourceEdge, tolerance=tolerance):
+                        d = Topology.Dictionary(sourceEdge)
+                        if d:
+                            updatedEdge = Topology.SetDictionary(updatedEdge, d)
+                        break
+                newEdges.append(updatedEdge)
+
+            rebuiltWire = topologic.Wire.ByEdges(newEdges)  # Hook to Core
+            if Topology.IsInstance(rebuiltWire, "Wire"):
+                wire = rebuiltWire
+
         if Wire.IsManifold(wire):
             if orient == True:
                 wire = Wire.OrientEdges(wire, Wire.StartVertex(wire), tolerance=tolerance)
-        return wire
 
+        return wire
+    
     @staticmethod
     def ByEdgesCluster(cluster, tolerance: float = 0.0001):
         """
@@ -481,7 +819,11 @@ class Wire():
             fac = 1
         origin = Topology.Centroid(wire)
         temp_vertices = [Topology.Vertices(wire)[0], Topology.Vertices(wire)[1], Topology.Centroid(wire)]
-        temp_face = Face.ByWire(Wire.ByVertices(temp_vertices, close=True, tolerance=tolerance), silent=silent)
+        temp_face = Face.ByWire(Wire.ByVertices(temp_vertices, close=True, tolerance=tolerance, silent=True), silent=True)
+        if not temp_face:
+            if not silent:
+                print("Wire.Offset - Error: The input wire has errors. Returning None.")
+            return None
         normal = Face.Normal(temp_face)
         flat_wire = Topology.Flatten(wire, direction=normal, origin=origin)
         original_edges = Topology.Edges(wire)
@@ -579,8 +921,12 @@ class Wire():
                             v1_2 = Topology.SetDictionary(v1_2, Topology.Dictionary(v_a), silent=True)
                             edge_dictionaries.append(Topology.Dictionary(v_a))
                             edge_dictionaries.append(Topology.Dictionary(edges[i]))
-                        bisectors_list.append(Edge.ByVertices(v_a, v1_1))
-                        bisectors_list.append(Edge.ByVertices(v_a, v1_2))
+                        b_e = Edge.ByVertices(v_a, v1_1, silent=True)
+                        if b_e:
+                            bisectors_list.append(b_e)
+                        b_e = Edge.ByVertices(v_a, v1_2, silent=True)
+                        if b_e:
+                            bisectors_list.append(b_e)
                         final_vertices.append(v1_1)
                         final_vertices.append(v1_2)
         v_a = Edge.EndVertex(edges[-1])
@@ -590,7 +936,9 @@ class Wire():
             if transferDictionaries == True:
                 v1 = Topology.SetDictionary(v1, Topology.Dictionary(v_a), silent=True)
             if bisectors == True:
-                bisectors_list.append(Edge.ByVertices(v_a, v1))
+                b_e = Edge.ByVertices(v_a, v1, silent=True)
+                if b_e:
+                    bisectors_list.append(b_e)
         return_wire = Wire.ByVertices(final_vertices, close=Wire.IsClosed(wire), tolerance=tolerance, silent=silent)
         wire_edges = [Edge.SetLength(w_e, Edge.Length(w_e)+(2*epsilon), bothSides=True) for w_e in Topology.Edges(return_wire)]
         return_wire_edges = Topology.Edges(return_wire)
@@ -606,7 +954,16 @@ class Wire():
                     wire_edge = Topology.SetDictionary(wire_edge, temp_dictionary, silent=True)
                     return_wire_edges[i] = Topology.SetDictionary(return_wire_edges[i], temp_dictionary, silent=True)
         if bisectors == True:
+            i = 0
             temp_return_wire = Topology.SelfMerge(Cluster.ByTopologies(wire_edges+bisectors_list))
+            while not Topology.IsInstance(temp_return_wire, "wire") and i < 9:
+                print(i, "temp_return_wire was:", temp_return_wire)
+                verts = Topology.Vertices(temp_return_wire)
+                new_verts = Vertex.Fuse(verts, tolerance=tolerance*(i+1)*10)
+                temp_return_wire = Topology.ReplaceVertices(temp_return_wire, verticesA=verts, verticesB=new_verts)
+                temp_return_wire = Topology.SelfMerge(temp_return_wire)
+                print("temp_return_wire is:", temp_return_wire)
+                i += 1
             if transferDictionaries == True:
                 sel_vertices = Topology.Vertices(return_wire)
                 sel_vertices += Topology.Vertices(flat_wire)
@@ -622,7 +979,10 @@ class Wire():
                 
             return_wire = temp_return_wire
         
+        
         if not Topology.IsInstance(return_wire, "Wire"):
+            print("return_wire is:", return_wire)
+            Topology.Show(return_wire, backgroundColor="orange")
             if not silent:
                 print("Wire.ByOffset - Warning: The resulting wire is not well-formed, please check your offsets.")
         else:
@@ -868,7 +1228,7 @@ class Wire():
         for i in range(len(vertexList)-1):
             v1 = vertexList[i]
             v2 = vertexList[i+1]
-            e = Edge.ByVertices([v1, v2], tolerance=tolerance, silent=silent)
+            e = Edge.ByVertices([v1, v2], tolerance=tolerance, silent=True)
             if Topology.IsInstance(e, "Edge"):
                 edges.append(e)
             else:
@@ -1975,8 +2335,411 @@ class Wire():
             c_shape = Topology.Orient(c_shape, origin=origin, dirA=[0, 0, 1], dirB=direction)
         return c_shape
 
+    # @staticmethod
+    # def Cycles(wire, maxVertices: int = 4, tolerance: float = 0.0001) -> list:
+    #     """
+    #     Returns the closed circuits of wires found within the input wire.
+
+    #     Parameters
+    #     ----------
+    #     wire : topologic_core.Wire
+    #         The input wire.
+    #     maxVertices : int , optional
+    #         The maximum number of vertices of the circuits to be searched. Default is 4.
+    #     tolerance : float , optional
+    #         The desired tolerance. Default is 0.0001.
+
+    #     Returns
+    #     -------
+    #     list
+    #         The list of circuits (closed wires) found within the input wire.
+
+    #     """
+    #     from topologicpy.Vertex import Vertex
+    #     from topologicpy.Edge import Edge
+    #     from topologicpy.Topology import Topology
+
+    #     def vIndex(v, vList, tolerance=0.0001):
+    #         for i in range(len(vList)):
+    #             if Vertex.Distance(v, vList[i]) <= tolerance:
+    #                 return i+1
+    #         return None
+        
+    #     #  rotate cycle path such that it begins with the smallest node
+    #     def rotate_to_smallest(path):
+    #         n = path.index(min(path))
+    #         return path[n:]+path[:n]
+
+    #     def invert(path):
+    #         return rotate_to_smallest(path[::-1])
+
+    #     def isNew(cycles, path):
+    #         return not path in cycles
+
+    #     def visited(node, path):
+    #         return node in path
+
+    #     def findNewCycles(graph, cycles, path, maxVertices):
+    #         if len(path) > maxVertices:
+    #             return
+    #         start_node = path[0]
+    #         next_node= None
+    #         sub = []
+
+    #         #visit each edge and each node of each edge
+    #         for edge in graph:
+    #             node1, node2 = edge
+    #             if start_node in edge:
+    #                     if node1 == start_node:
+    #                         next_node = node2
+    #                     else:
+    #                         next_node = node1
+    #                     if not visited(next_node, path):
+    #                             # neighbor node not on path yet
+    #                             sub = [next_node]
+    #                             sub.extend(path)
+    #                             # explore extended path
+    #                             findNewCycles(graph, cycles, sub, maxVertices);
+    #                     elif len(path) > 2  and next_node == path[-1]:
+    #                             # cycle found
+    #                             p = rotate_to_smallest(path);
+    #                             inv = invert(p)
+    #                             if isNew(cycles, p) and isNew(cycles, inv):
+    #                                 cycles.append(p)
+
+    #     def main(graph, cycles, maxVertices):
+    #         returnValue = []
+    #         for edge in graph:
+    #             for node in edge:
+    #                 findNewCycles(graph, cycles, [node], maxVertices)
+    #         for cy in cycles:
+    #             row = []
+    #             for node in cy:
+    #                 row.append(node)
+    #             returnValue.append(row)
+    #         return returnValue
+
+    #     tEdges = []
+    #     _ = wire.Edges(None, tEdges)
+    #     tVertices = Topology.Vertices(wire)
+    #     tVertices = tVertices
+
+    #     graph = []
+    #     for anEdge in tEdges:
+    #         graph.append([vIndex(Edge.StartVertex(anEdge), tVertices, tolerance), vIndex(Edge.EndVertex(anEdge), tVertices, tolerance)]) # Hook to Core
+
+    #     cycles = []
+    #     resultingCycles = main(graph, cycles, maxVertices)
+
+    #     result = []
+    #     for aRow in resultingCycles:
+    #         row = []
+    #         for anIndex in aRow:
+    #             row.append(tVertices[anIndex-1])
+    #         result.append(row)
+
+    #     resultWires = []
+    #     for i in range(len(result)):
+    #         c = result[i]
+    #         resultEdges = []
+    #         for j in range(len(c)-1):
+    #             v1 = c[j]
+    #             v2 = c[j+1]
+    #             e = Edge.ByStartVertexEndVertex(v1, v2, tolerance=tolerance, silent=True)
+    #             resultEdges.append(e)
+    #         e = Edge.ByStartVertexEndVertex(c[len(c)-1], c[0], tolerance=tolerance, silent=True)
+    #         resultEdges.append(e)
+    #         resultWire = Wire.ByEdges(resultEdges, tolerance=tolerance)
+    #         resultWires.append(resultWire)
+    #     return resultWires
+    # @staticmethod
+    # def Cycles(wire, maxVertices: int = 4, transferDictionaries: bool = False, tolerance: float = 0.0001) -> list:
+    #     """
+    #     Returns the closed circuits of wires found within the input wire.
+
+    #     Parameters
+    #     ----------
+    #     wire : topologic_core.Wire
+    #         The input wire.
+    #     maxVertices : int , optional
+    #         The maximum number of vertices of the circuits to be searched. Default is 4.
+    #     transferDictionaries : bool , optional
+    #         If set to True, transfers the dictionaries of the original edges
+    #         to the corresponding new edges in the resulting cycle wires.
+    #         Default is False.
+    #     tolerance : float , optional
+    #         The desired tolerance. Default is 0.0001.
+
+    #     Returns
+    #     -------
+    #     list
+    #         The list of circuits (closed wires) found within the input wire.
+    #     """
+
+    #     from topologicpy.Vertex import Vertex
+    #     from topologicpy.Edge import Edge
+    #     from topologicpy.Wire import Wire
+    #     from topologicpy.Topology import Topology
+
+    #     def vIndex(v, vList):
+    #         for i, tv in enumerate(vList):
+    #             if Vertex.Distance(v, tv) <= tolerance:
+    #                 return i + 1
+    #         return None
+
+    #     def canonical_cycle(cycle):
+    #         """
+    #         Canonicalize an undirected cycle so duplicates from:
+    #         - different starting points
+    #         - reversed direction
+    #         collapse to one representation.
+
+    #         Input cycle is expected to be a simple cycle without repeated
+    #         closing node, e.g. [2, 5, 4].
+    #         """
+    #         if not cycle:
+    #             return tuple()
+
+    #         n = len(cycle)
+    #         min_val = min(cycle)
+    #         min_positions = [i for i, x in enumerate(cycle) if x == min_val]
+
+    #         candidates = []
+    #         for pos in min_positions:
+    #             rotated = cycle[pos:] + cycle[:pos]
+    #             candidates.append(tuple(rotated))
+
+    #         rev = list(reversed(cycle))
+    #         min_positions_rev = [i for i, x in enumerate(rev) if x == min_val]
+    #         for pos in min_positions_rev:
+    #             rotated = rev[pos:] + rev[:pos]
+    #             candidates.append(tuple(rotated))
+
+    #         return min(candidates)
+
+    #     def strongly_connected_components(vertices, adj):
+    #         """
+    #         Tarjan SCC on a directed graph.
+    #         vertices: iterable of vertex ids
+    #         adj: dict {v: set(neighbors)}
+    #         Returns list of SCCs as sets.
+    #         """
+    #         index = 0
+    #         stack = []
+    #         onstack = set()
+    #         indices = {}
+    #         lowlink = {}
+    #         sccs = []
+
+    #         def strongconnect(v):
+    #             nonlocal index
+    #             indices[v] = index
+    #             lowlink[v] = index
+    #             index += 1
+    #             stack.append(v)
+    #             onstack.add(v)
+
+    #             for w in adj.get(v, set()):
+    #                 if w not in indices:
+    #                     strongconnect(w)
+    #                     lowlink[v] = min(lowlink[v], lowlink[w])
+    #                 elif w in onstack:
+    #                     lowlink[v] = min(lowlink[v], indices[w])
+
+    #             if lowlink[v] == indices[v]:
+    #                 scc = set()
+    #                 while True:
+    #                     w = stack.pop()
+    #                     onstack.remove(w)
+    #                     scc.add(w)
+    #                     if w == v:
+    #                         break
+    #                 sccs.append(scc)
+
+    #         for v in vertices:
+    #             if v not in indices:
+    #                 strongconnect(v)
+
+    #         return sccs
+
+    #     def johnson_simple_cycles(vertices, adj, max_cycle_len=None):
+    #         """
+    #         Johnson's algorithm for directed simple cycles.
+    #         vertices: sorted list of vertex ids
+    #         adj: dict {v: set(neighbors)}
+    #         Returns cycles as lists without repeated closing node.
+    #         """
+    #         all_cycles = []
+
+    #         blocked = set()
+    #         B = {}
+    #         stack = []
+
+    #         def unblock(u):
+    #             if u in blocked:
+    #                 blocked.remove(u)
+    #                 while B[u]:
+    #                     w = B[u].pop()
+    #                     unblock(w)
+
+    #         def circuit(v, s, sub_adj):
+    #             found_cycle = False
+    #             stack.append(v)
+    #             blocked.add(v)
+
+    #             for w in sub_adj.get(v, set()):
+    #                 if max_cycle_len is not None and len(stack) > max_cycle_len:
+    #                     continue
+    #                 if w == s:
+    #                     all_cycles.append(stack[:])
+    #                     found_cycle = True
+    #                 elif w not in blocked:
+    #                     if circuit(w, s, sub_adj):
+    #                         found_cycle = True
+
+    #             if found_cycle:
+    #                 unblock(v)
+    #             else:
+    #                 for w in sub_adj.get(v, set()):
+    #                     if v not in B[w]:
+    #                         B[w].add(v)
+
+    #             stack.pop()
+    #             return found_cycle
+
+    #         vertex_list = sorted(vertices)
+    #         start_idx = 0
+
+    #         while start_idx < len(vertex_list):
+    #             sub_vertices = set(vertex_list[start_idx:])
+
+    #             sub_adj_full = {}
+    #             for v in sub_vertices:
+    #                 nbrs = adj.get(v, set())
+    #                 sub_adj_full[v] = set(w for w in nbrs if w in sub_vertices)
+
+    #             sccs = strongly_connected_components(sorted(sub_vertices), sub_adj_full)
+
+    #             eligible_sccs = []
+    #             for scc in sccs:
+    #                 if len(scc) > 1:
+    #                     eligible_sccs.append(scc)
+    #                 elif len(scc) == 1:
+    #                     v = next(iter(scc))
+    #                     if v in sub_adj_full.get(v, set()):
+    #                         eligible_sccs.append(scc)
+
+    #             if not eligible_sccs:
+    #                 break
+
+    #             min_scc = min(eligible_sccs, key=lambda comp: min(comp))
+    #             s = min(min_scc)
+
+    #             component = min_scc
+    #             sub_adj = {}
+    #             for v in component:
+    #                 sub_adj[v] = set(w for w in sub_adj_full.get(v, set()) if w in component)
+
+    #             blocked = set()
+    #             B = {v: set() for v in component}
+    #             stack = []
+
+    #             circuit(s, s, sub_adj)
+
+    #             start_idx = vertex_list.index(s) + 1
+
+    #         return all_cycles
+
+    #     tEdges = []
+    #     _ = wire.Edges(None, tEdges)
+    #     tVertices = Topology.Vertices(wire)
+
+    #     directed_adj = {}
+    #     undirected_edge_lookup = {}
+    #     vertex_ids = set()
+
+    #     for anEdge in tEdges:
+    #         sv = Edge.StartVertex(anEdge)
+    #         ev = Edge.EndVertex(anEdge)
+
+    #         si = vIndex(sv, tVertices)
+    #         ei = vIndex(ev, tVertices)
+
+    #         if si is None or ei is None or si == ei:
+    #             continue
+
+    #         vertex_ids.add(si)
+    #         vertex_ids.add(ei)
+
+    #         if si not in directed_adj:
+    #             directed_adj[si] = set()
+    #         if ei not in directed_adj:
+    #             directed_adj[ei] = set()
+
+    #         # Undirected graph represented as two directed arcs
+    #         directed_adj[si].add(ei)
+    #         directed_adj[ei].add(si)
+
+    #         key = tuple(sorted((si, ei)))
+    #         if key not in undirected_edge_lookup:
+    #             undirected_edge_lookup[key] = anEdge
+
+    #     raw_cycles = johnson_simple_cycles(
+    #         vertices=sorted(vertex_ids),
+    #         adj=directed_adj,
+    #         max_cycle_len=maxVertices
+    #     )
+
+    #     # Filter out 2-cycles introduced by converting undirected edges to two arcs:
+    #     # e.g. [u, v] corresponds to u->v->u, which is not a polygonal cycle.
+    #     canonical_cycles = set()
+    #     filtered_cycles = []
+
+    #     for cycle in raw_cycles:
+    #         if len(cycle) < 3:
+    #             continue
+    #         if len(cycle) > maxVertices:
+    #             continue
+
+    #         cc = canonical_cycle(cycle)
+    #         if cc not in canonical_cycles:
+    #             canonical_cycles.add(cc)
+    #             filtered_cycles.append(list(cc))
+
+    #     resultWires = []
+    #     for cycle in filtered_cycles:
+    #         resultEdges = []
+    #         n = len(cycle)
+
+    #         for i in range(n):
+    #             i1 = cycle[i]
+    #             i2 = cycle[(i + 1) % n]
+
+    #             v1 = tVertices[i1 - 1]
+    #             v2 = tVertices[i2 - 1]
+
+    #             newEdge = Edge.ByStartVertexEndVertex(v1, v2, tolerance=tolerance, silent=True)
+    #             if not newEdge:
+    #                 continue
+
+    #             if transferDictionaries:
+    #                 source_edge = undirected_edge_lookup.get(tuple(sorted((i1, i2))))
+    #                 if source_edge:
+    #                     d = Topology.Dictionary(source_edge)
+    #                     if d:
+    #                         newEdge = Topology.SetDictionary(newEdge, d)
+
+    #             resultEdges.append(newEdge)
+
+    #         if len(resultEdges) >= 3:
+    #             resultWire = Wire.ByEdges(resultEdges, tolerance=tolerance)
+    #             if resultWire:
+    #                 resultWires.append(resultWire)
+
+    #     return resultWires
+
     @staticmethod
-    def Cycles(wire, maxVertices: int = 4, tolerance: float = 0.0001) -> list:
+    def Cycles(wire, maxVertices: int = 4, transferDictionaries: bool = False, tolerance: float = 0.0001) -> list:
         """
         Returns the closed circuits of wires found within the input wire.
 
@@ -1986,6 +2749,10 @@ class Wire():
             The input wire.
         maxVertices : int , optional
             The maximum number of vertices of the circuits to be searched. Default is 4.
+        transferDictionaries : bool , optional
+            If set to True, transfers the dictionaries of the original edges
+            to the corresponding new edges in the resulting cycle wires.
+            Default is False.
         tolerance : float , optional
             The desired tolerance. Default is 0.0001.
 
@@ -1993,104 +2760,121 @@ class Wire():
         -------
         list
             The list of circuits (closed wires) found within the input wire.
-
         """
+
         from topologicpy.Vertex import Vertex
         from topologicpy.Edge import Edge
+        from topologicpy.Wire import Wire
         from topologicpy.Topology import Topology
 
-        def vIndex(v, vList, tolerance=0.0001):
-            for i in range(len(vList)):
-                if Vertex.Distance(v, vList[i]) <= tolerance:
-                    return i+1
+        # ------------------------------------------------------------------
+        # Helpers
+        # ------------------------------------------------------------------
+
+        def vIndex(v, vList):
+            for i, tv in enumerate(vList):
+                if Vertex.Distance(v, tv) <= tolerance:
+                    return i + 1
             return None
-        
-        #  rotate cycle path such that it begins with the smallest node
+
         def rotate_to_smallest(path):
             n = path.index(min(path))
-            return path[n:]+path[:n]
+            return path[n:] + path[:n]
 
         def invert(path):
             return rotate_to_smallest(path[::-1])
 
         def isNew(cycles, path):
-            return not path in cycles
+            return path not in cycles
 
         def visited(node, path):
             return node in path
 
-        def findNewCycles(graph, cycles, path, maxVertices):
+        def findNewCycles(graph, cycles, path):
             if len(path) > maxVertices:
                 return
+
             start_node = path[0]
-            next_node= None
-            sub = []
 
-            #visit each edge and each node of each edge
-            for edge in graph:
-                node1, node2 = edge
-                if start_node in edge:
-                        if node1 == start_node:
-                            next_node = node2
-                        else:
-                            next_node = node1
-                        if not visited(next_node, path):
-                                # neighbor node not on path yet
-                                sub = [next_node]
-                                sub.extend(path)
-                                # explore extended path
-                                findNewCycles(graph, cycles, sub, maxVertices);
-                        elif len(path) > 2  and next_node == path[-1]:
-                                # cycle found
-                                p = rotate_to_smallest(path);
-                                inv = invert(p)
-                                if isNew(cycles, p) and isNew(cycles, inv):
-                                    cycles.append(p)
+            for node1, node2 in graph:
+                if start_node in (node1, node2):
+                    next_node = node2 if node1 == start_node else node1
 
-        def main(graph, cycles, maxVertices):
-            returnValue = []
-            for edge in graph:
-                for node in edge:
-                    findNewCycles(graph, cycles, [node], maxVertices)
-            for cy in cycles:
-                row = []
-                for node in cy:
-                    row.append(node)
-                returnValue.append(row)
-            return returnValue
+                    if not visited(next_node, path):
+                        findNewCycles(graph, cycles, [next_node] + path)
+                    elif len(path) > 2 and next_node == path[-1]:
+                        p = rotate_to_smallest(path)
+                        inv = invert(p)
+                        if isNew(cycles, p) and isNew(cycles, inv):
+                            cycles.append(p)
+
+        # ------------------------------------------------------------------
+        # Build vertex + edge index structures
+        # ------------------------------------------------------------------
 
         tEdges = []
         _ = wire.Edges(None, tEdges)
         tVertices = Topology.Vertices(wire)
-        tVertices = tVertices
 
         graph = []
+        edgeLookup = {}  # (min_i, max_i) → original edge
+
         for anEdge in tEdges:
-            graph.append([vIndex(Edge.StartVertex(anEdge), tVertices, tolerance), vIndex(Edge.EndVertex(anEdge), tVertices, tolerance)]) # Hook to Core
+            sv = Edge.StartVertex(anEdge)
+            ev = Edge.EndVertex(anEdge)
+
+            si = vIndex(sv, tVertices)
+            ei = vIndex(ev, tVertices)
+
+            if si is None or ei is None:
+                continue
+
+            graph.append((si, ei))
+
+            key = tuple(sorted((si, ei)))
+            if key not in edgeLookup:
+                edgeLookup[key] = anEdge
+
+        # ------------------------------------------------------------------
+        # Find cycles (pure index domain)
+        # ------------------------------------------------------------------
 
         cycles = []
-        resultingCycles = main(graph, cycles, maxVertices)
+        for node1, node2 in graph:
+            findNewCycles(graph, cycles, [node1])
+            findNewCycles(graph, cycles, [node2])
 
-        result = []
-        for aRow in resultingCycles:
-            row = []
-            for anIndex in aRow:
-                row.append(tVertices[anIndex-1])
-            result.append(row)
+        # ------------------------------------------------------------------
+        # Construct resulting wires (no more vIndex calls)
+        # ------------------------------------------------------------------
 
         resultWires = []
-        for i in range(len(result)):
-            c = result[i]
+
+        for cycle in cycles:
             resultEdges = []
-            for j in range(len(c)-1):
-                v1 = c[j]
-                v2 = c[j+1]
-                e = Edge.ByStartVertexEndVertex(v1, v2, tolerance=tolerance, silent=True)
-                resultEdges.append(e)
-            e = Edge.ByStartVertexEndVertex(c[len(c)-1], c[0], tolerance=tolerance, silent=True)
-            resultEdges.append(e)
+
+            for i in range(len(cycle)):
+                i1 = cycle[i]
+                i2 = cycle[(i + 1) % len(cycle)]
+
+                v1 = tVertices[i1 - 1]
+                v2 = tVertices[i2 - 1]
+
+                newEdge = Edge.ByStartVertexEndVertex(v1, v2, tolerance=tolerance, silent=True)
+
+                if transferDictionaries:
+                    key = tuple(sorted((i1, i2)))
+                    sourceEdge = edgeLookup.get(key)
+                    if sourceEdge:
+                        d = Topology.Dictionary(sourceEdge)
+                        if d:
+                            newEdge = Topology.SetDictionary(newEdge, d)
+
+                resultEdges.append(newEdge)
+
             resultWire = Wire.ByEdges(resultEdges, tolerance=tolerance)
             resultWires.append(resultWire)
+
         return resultWires
 
     @staticmethod
@@ -5025,6 +5809,191 @@ class Wire():
         return_wire = Topology.SetDictionary(return_wire, Topology.Dictionary(wire), silent=silent)
         return return_wire
 
+    @staticmethod
+    def Ribbon(wire,
+               thickness: float = 1.0,
+               thicknessKey: str = "thickness",
+               offset: float = 1.0,
+               offsetKey: str = "offset",
+               stepOffsetA: float = 0,
+               stepOffsetB: float = 0,
+               stepOffsetKeyA: str = "stepOffsetA",
+               stepOffsetKeyB: str = "stepOffsetB",
+               reverse: bool = False,
+               bisectors: bool = False,
+               transferDictionaries: bool = False,
+               removeCollinearEdges: bool = False,
+               epsilon: float = 0.01,
+               tolerance: float = 0.0001, 
+               silent: bool = False,
+               numWorkers: int = None):
+        """
+        Creates a ribbon (face or shell) wire from the input wire. A positive offset value results in an offset to the interior of an anti-clockwise wire.
+
+        Parameters
+        ----------
+        wire : topologic_core.Wire
+            The input wire.
+        thickness : float , optional
+            The desired thickness of the ribbon. Default is 1.0.
+        thicknessKey : str , optional
+            The edge dictionary key under which to find the thickness value. The thickness is the width of the ribbon. If a value cannot be found, the thickness input parameter value is used instead. Default is "thickness".
+        offset : float , optional
+            The desired offset distance. An offset is measured prependicularly from the input wire to the nearest parallel edge that belongs to the ribbon. Default is 1.0.
+        offsetKey : str , optional
+            The edge dictionary key under which to find the offset value. If a value cannot be found, the offset input parameter value is used instead. Default is "offset".
+        stepOffsetA : float , optional
+            The amount to offset along the previous edge when transitioning between parallel edges with different offsets. Default is 0.
+        stepOffsetB : float , optional
+            The amount to offset along the next edge when transitioning between parallel edges with different offsets. Default is 0.
+        stepOffsetKeyA : str , optional
+            The vertex dictionary key under which to find the step offset A value. If a value cannot be found, the stepOffsetA input parameter value is used instead. Default is "stepOffsetA".
+        stepOffsetKeyB : str , optional
+            The vertex dictionary key under which to find the step offset B value. If a value cannot be found, the stepOffsetB input parameter value is used instead. Default is "stepOffsetB".
+        reverse : bool , optional
+            If set to True, the direction of offsets is reversed. Otherwise, it is not. Default is False.
+        bisectors : bool , optional
+            If set to True, The bisectors (seams) edges will be included in the returned ribbon (i.e. shell). If not, the returned ribbon is a face. Default is False.
+        transferDictionaries : bool , optional
+            If set to True, the dictionaries of the original wire, its edges, and its vertices are transfered to the created ribbon. Otherwise, they are not. Default is False.
+        removeCollinearEdges : bool , optional
+            If set to True, collinear edges are removed. Default is False.
+        epsilon : float , optional
+            The desired epsilon (another form of tolerance for shortest edge to remove). Default is 0.01. (This is set to a larger number as it was found to work better)
+        tolerance : float , optional
+            The desired tolerance. Default is 0.0001.
+        silent : bool , optional
+            If set to True, error and warning messages are suppressed. Default is False.
+        numWorkers : int , optional
+            Number of workers run in parallel to process. If you set it to 1, no parallel processing will take place.
+            The default is None which causes the algorithm to use twice the number of cpu cores in the host computer.
+
+        
+        Returns
+        -------
+        topologic_core.Wire
+            The created wire.
+
+        """
+        from topologicpy.Face import Face
+        from topologicpy.Shell import Shell
+        from topologicpy.Cluster import Cluster
+        from topologicpy.Topology import Topology
+        from topologicpy.Helper import Helper
+        from topologicpy.Dictionary import Dictionary
+
+        wire_1 = Wire.ByOffset(wire,
+                               offset = offset,
+                               offsetKey = offsetKey,
+                               stepOffsetA = stepOffsetA,
+                               stepOffsetB = stepOffsetB,
+                               stepOffsetKeyA = stepOffsetKeyA,
+                               stepOffsetKeyB = stepOffsetKeyB,
+                               reverse = reverse,
+                               bisectors = False,
+                               transferDictionaries = True,
+                               epsilon = epsilon,
+                               tolerance = tolerance,
+                               silent = silent,
+                               numWorkers = numWorkers)
+        
+        wire_2 = Wire.ByOffset(wire_1,
+                               offset = thickness,
+                               offsetKey = thicknessKey,
+                               stepOffsetA = stepOffsetA,
+                               stepOffsetB = stepOffsetB,
+                               stepOffsetKeyA = stepOffsetKeyA,
+                               stepOffsetKeyB = stepOffsetKeyB,
+                               reverse = reverse,
+                               bisectors = True,
+                               transferDictionaries = False,
+                               epsilon = epsilon,
+                               tolerance = tolerance,
+                               silent = silent,
+                               numWorkers = numWorkers)
+        
+        final_wire = Topology.SelfMerge(Cluster.ByTopologies(Topology.Edges(wire_1)+Topology.Edges(wire_2)))
+        Topology.Show(final_wire, backgroundColor="orange", width=400, height=400)
+        #final_wire = Wire.ByEdges(Topology.Edges(wire_1)+Topology.Edges(wire_2))
+        temp_edges = Topology.Edges(final_wire)
+        for t_e in temp_edges:
+            d = Topology.Dictionary(t_e)
+        #final_wire = Topology.SelfMerge(Cluster.ByTopologies(Topology.Edges(wire_1)+Topology.Edges(wire_2)))
+        cycles = Wire.Cycles(final_wire, maxVertices=4, transferDictionaries=True)
+
+        faces = []
+        for cycle in cycles:
+            c_edges = Topology.Edges(cycle)
+            for c_e in c_edges:
+                d = Topology.Dictionary(c_e)
+                if len(Dictionary.Keys(d)) > 0:
+                    break
+            f = Face.ByWire(cycle)
+            if removeCollinearEdges:
+                f = Topology.RemoveCollinearEdges(f)
+            if Topology.IsInstance(f, "face"):
+                f = Topology.SetDictionary(f, d)
+                faces.append(f)
+
+        if Wire.IsClosed(wire):
+            areas = [Face.Area(f) for f in faces]
+            faces = Helper.Sort(faces, areas)
+            faces = [f for f in faces[:-1]]
+            shell = Shell.ByFaces(faces)
+            if transferDictionaries:
+                all_dictionaries = []
+                selectors = []
+                for g_f in faces:
+                    d = Topology.Dictionary(g_f)
+                    if len(Dictionary.Keys(d)) > 0:
+                        s = Topology.InternalVertex(g_f)
+                        s = Topology.SetDictionary(s, d)
+                        selectors.append(s)
+                        all_dictionaries.append(d)
+                if len(selectors) > 0:
+                    shell = Topology.TransferDictionariesBySelectors(shell, selectors, tranFaces=True)
+            s_faces = Topology.Faces(shell)
+            good_faces = []
+            for s_f in s_faces:
+                f_edges = Topology.Edges(s_f)
+                for f_e in f_edges:
+                    super_faces = Topology.SuperTopologies(f_e, hostTopology=shell, topologyType="face")
+                    if len(super_faces) == 1:
+                        if removeCollinearEdges:
+                            s_f = Topology.RemoveCollinearEdges(s_f)
+                        good_faces.append(s_f)
+                        break
+        else:
+            good_faces = faces
+        
+        shell = Shell.ByFaces(good_faces)
+        
+        if Topology.IsInstance(shell, "shell"):
+            if transferDictionaries:
+                for s in selectors:
+                    d = Topology.Dictionary(s)
+                shell = Topology.TransferDictionariesBySelectors(shell, selectors, tranFaces=True, tolerance=0.001)
+            if Topology.IsInstance(shell, "shell"):
+                # If the bisectors are False, transform the shell into a face and merge and transfer dictionaries.
+                if bisectors == False:
+                    eb = Shell.ExternalBoundary(shell)
+                    ib_list = Shell.InternalBoundaries(shell)
+                    f = Face.ByWires(eb, ib_list)
+                    if Topology.IsInstance(f, "face"):
+                        if transferDictionaries:
+                            d = Dictionary.ByMergedDictionaries(all_dictionaries)
+                        f = Topology.SetDictionary(f, d)
+                        return f
+                    else:
+                        if not silent:
+                            print("Wire.Ribbon - Error: Could not create the final face. Returning None.")
+                        return None
+                else:
+                    return shell
+        if not silent:
+            print("Wire.Ribbon - Error: Could not create the final shell. Returning None.")
+        return None
+    
     @staticmethod
     def Roof(face, angle: float = 45, boundary: bool = True, tolerance: float = 0.001):
         """

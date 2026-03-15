@@ -10301,8 +10301,9 @@ class Topology():
              intensityKey=None,
              intensities=[],
 
-             material = "plastic",
+             material = "default",
              materialKey=None,
+             flatShading = True,
              ambient = None,
              ambientKey=None,
              diffuse = None,
@@ -10524,9 +10525,11 @@ class Topology():
             matte        0.9      0.7       0.0        1.0     Flat, non-reflective surfaces
             metallic     0.3      0.8       0.9        0.2     Strong, sharp reflections
             plastic      0.6      0.9       0.2        0.4     Soft highlights, good shape readability
-            Default is "plastic".
+            Default is a matte material that uses facenormalepsilon=0.
         materialKey : str , optional
             The dictionary key under which the material string is stored. Default is None.
+        flatShading : bool , optional
+            If set to True, the model is rendered with flat shading with no clear light source. Default is True.
         ambient : float , optional
             Controls the strength of ambient light applied uniformly to the surface.
             Higher values reduce shading contrast by increasing overall brightness.
@@ -10748,6 +10751,7 @@ class Topology():
                                               intensityKey=intensityKey,
                                               intensities=intensities,
                                               material=material,
+                                              flatShading=flatShading,
                                               materialKey=materialKey,
                                               ambient=ambient,
                                               ambientKey=ambientKey,
