@@ -101,7 +101,8 @@ class Vertex():
     @staticmethod
     def AreCollinear(vertices: list, mantissa: int = 6, tolerance: float = 0.0001):
         """
-        Returns True if the input list of vertices form a straight line. Returns False otherwise.
+        Returns True if the input list of vertices form a straight line.
+        Returns False otherwise.
 
         Parameters
         ----------
@@ -115,41 +116,98 @@ class Vertex():
         Returns
         -------
         bool
-            True if the input vertices are on the same side of the face. False otherwise.
-
+            True if the input vertices are collinear. False otherwise.
         """
-        from topologicpy.Cluster import Cluster
         from topologicpy.Topology import Topology
-        from topologicpy.Vector import Vector
-        
-        def areCollinear(vertices, tolerance=0.0001):
-            point1 = Vertex.Coordinates(vertices[0], mantissa=mantissa)
-            point2 = Vertex.Coordinates(vertices[1], mantissa=mantissa)
-            point3 = Vertex.Coordinates(vertices[2], mantissa=mantissa)
+        import math
 
-            vector1 = [point2[0] - point1[0], point2[1] - point1[1], point2[2] - point1[2]]
-            vector2 = [point3[0] - point1[0], point3[1] - point1[1], point3[2] - point1[2]]
+        def distance(p1, p2):
+            dx = p2[0] - p1[0]
+            dy = p2[1] - p1[1]
+            dz = p2[2] - p1[2]
+            return math.sqrt(dx*dx + dy*dy + dz*dz)
 
-            cross_product_result = Vector.Cross(vector1, vector2, tolerance=tolerance)
-            return cross_product_result == None
-        
+        def vector(p1, p2):
+            return [p2[0] - p1[0], p2[1] - p1[1], p2[2] - p1[2]]
+
+        def cross(u, v):
+            return [
+                u[1]*v[2] - u[2]*v[1],
+                u[2]*v[0] - u[0]*v[2],
+                u[0]*v[1] - u[1]*v[0]
+            ]
+
+        def magnitude(v):
+            return math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2])
+
         if not isinstance(vertices, list):
-            print("Vertex.AreCollinear - Error: The input list of vertices is not a valid list. Returning None.")
+            print("Vertex.AreCollinear - Error: The input vertices parameter is not a valid list. Returning None.")
             return None
+
         vertexList = [x for x in vertices if Topology.IsInstance(x, "Vertex")]
         if len(vertexList) < 2:
             print("Vertex.AreCollinear - Error: The input list of vertices does not contain sufficient valid vertices. Returning None.")
             return None
+
         if len(vertexList) < 3:
-            return True # Any two vertices can form a line!
-        cluster = Topology.SelfMerge(Cluster.ByTopologies(vertexList), tolerance=tolerance)
-        vertexList = Topology.Vertices(cluster)
-        slices = []
-        for i in range(2,len(vertexList)):
-            slices.append([vertexList[0], vertexList[1], vertexList[i]])
-        for slice in slices:
-            if not areCollinear(slice, tolerance=tolerance):
+            return True  # Any two vertices define a line.
+
+        # Extract coordinates without premature geometric interpretation.
+        points = []
+        for v in vertexList:
+            coords = Vertex.Coordinates(v, mantissa=mantissa)
+            if not isinstance(coords, (list, tuple)) or len(coords) < 3:
+                continue
+            points.append([float(coords[0]), float(coords[1]), float(coords[2])])
+
+        if len(points) < 2:
+            print("Vertex.AreCollinear - Error: Could not extract sufficient valid coordinates from the input vertices. Returning None.")
+            return None
+
+        if len(points) < 3:
+            return True
+
+        # Remove duplicate / near-duplicate points deterministically.
+        unique_points = []
+        for p in points:
+            is_duplicate = False
+            for q in unique_points:
+                if distance(p, q) <= tolerance:
+                    is_duplicate = True
+                    break
+            if not is_duplicate:
+                unique_points.append(p)
+
+        if len(unique_points) < 3:
+            return True
+
+        # Find the first pair of sufficiently distinct points to define the line.
+        p0 = unique_points[0]
+        p1 = None
+        for i in range(1, len(unique_points)):
+            if distance(p0, unique_points[i]) > tolerance:
+                p1 = unique_points[i]
+                break
+
+        if p1 is None:
+            return True
+
+        base_vec = vector(p0, p1)
+        base_len = magnitude(base_vec)
+        if base_len <= tolerance:
+            return True
+
+        # Check every remaining point against the line through p0-p1.
+        # The magnitude of the cross product equals |base_vec| * perpendicular_distance.
+        # So compare the perpendicular distance to tolerance.
+        for i in range(2, len(unique_points)):
+            pi = unique_points[i]
+            test_vec = vector(p0, pi)
+            cross_vec = cross(base_vec, test_vec)
+            perp_dist = magnitude(cross_vec) / base_len
+            if perp_dist > tolerance:
                 return False
+
         return True
     
     @staticmethod
@@ -417,6 +475,68 @@ class Vertex():
             vertex = None
             print("Vertex.ByCoordinates - Error: Could not create a topologic vertex. Returning None.")
         return vertex
+
+    @staticmethod
+    def ByOffset2DRelativeToEdge(vertex, edge, offset: float = 1.0, tolerance: float = 0.0001):
+        """
+        Creates a new vertex offset from the input vertex in the XY plane,
+        using the 2D left-hand normal direction of the input edge.
+
+        Parameters
+        ----------
+        vertex : topologic_core.Vertex
+            The vertex to offset.
+        edge : topologic_core.Edge
+            The reference edge used to compute the perpendicular direction.
+        offset : float , optional
+            The offset distance. Default is 1.0.
+        tolerance : float , optional
+            The desired tolerance. Default is 0.0001.
+
+        Returns
+        -------
+        topologic_core.Vertex
+            The offset vertex.
+        """
+
+        from topologicpy.Topology import Topology
+        from topologicpy.Vertex import Vertex
+        from topologicpy.Edge import Edge
+
+        # Validate input
+        if not Topology.IsInstance(vertex, "Vertex"):
+            return None
+        if not Topology.IsInstance(edge, "Edge"):
+            return None
+
+        # Get edge vertices
+        sv = Edge.StartVertex(edge)
+        ev = Edge.EndVertex(edge)
+
+        x1, y1, _ = Vertex.Coordinates(sv)
+        x2, y2, _ = Vertex.Coordinates(ev)
+
+        # Edge direction vector
+        dx = x2 - x1
+        dy = y2 - y1
+
+        length = (dx**2 + dy**2)**0.5
+        if length < tolerance:
+            return None
+
+        # Left-hand perpendicular unit vector
+        nx = -dy / length
+        ny = dx / length
+
+        # Offset components
+        ox = nx * offset
+        oy = ny * offset
+
+        # Original vertex coordinates
+        vx, vy, vz = Vertex.Coordinates(vertex)
+
+        # Create offset vertex (preserve original Z)
+        return Vertex.ByCoordinates(vx + ox, vy + oy, vz)
     
     @staticmethod
     def Centroid(vertices: list, mantissa: int = 6):

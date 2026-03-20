@@ -381,7 +381,9 @@ class Wire():
                 v1 = Topology.SetDictionary(v1, Topology.Dictionary(v_a), silent=True)
             if bisectors == True:
                 bisectors_list.append(Edge.ByVertices(v_a, v1))
-        return bisectors_list
+        bisectors_cluster = Cluster.ByTopologies(bisectors_list)
+        return Topology.Unflatten(bisectors_cluster, direction=normal, origin=origin)
+
         # return_wire = Wire.ByVertices(final_vertices, close=Wire.IsClosed(wire), tolerance=tolerance, silent=silent)
         # wire_edges = [Edge.SetLength(w_e, Edge.Length(w_e)+(2*epsilon), bothSides=True) for w_e in Topology.Edges(return_wire)]
         # return_wire_edges = Topology.Edges(return_wire)
@@ -457,16 +459,23 @@ class Wire():
     @staticmethod
     def BoundingRectangle(topology, optimize: int = 0, mantissa: int = 6, tolerance: float = 0.0001, silent: bool = False):
         """
-        Returns a wire representing a bounding rectangle of the input topology. The returned wire contains a dictionary with key "zrot" that represents rotations around the Z axis. If applied the resulting wire will become axis-aligned.
+        Returns a wire representing a bounding rectangle of the input topology.
+        The returned wire contains a dictionary with key "zrot" that represents
+        rotations around the Z axis. If applied, the resulting wire will become
+        axis-aligned.
 
         Parameters
         ----------
         topology : topologic_core.Topology
             The input topology.
         optimize : int , optional
-            If set to an integer from 1 (low optimization) to 10 (high optimization), the method will attempt to optimize the bounding rectangle so that it reduces its surface area.
-            The minimum optimization number of 0 will result in an axis-aligned bounding rectangle.
-            A maximum optimization number of 10 will attempt to reduce the bounding rectangle's area by 50%. Default is 0.
+            If set to an integer from 1 (low optimization) to 10 (high optimization),
+            the method will attempt to optimize the bounding rectangle so that it
+            reduces its surface area.
+            The minimum optimization number of 0 will result in an axis-aligned
+            bounding rectangle.
+            A maximum optimization number of 10 will attempt to reduce the bounding
+            rectangle's area by 50%. Default is 0.
         mantissa : int , optional
             The number of decimal places to round the result to. Default is 6.
         tolerance : float , optional
@@ -478,27 +487,93 @@ class Wire():
         -------
         topologic_core.Wire
             The bounding rectangle of the input topology.
-
         """
         from topologicpy.Vertex import Vertex
-        from topologicpy.Face import Face
         from topologicpy.Topology import Topology
         from topologicpy.Dictionary import Dictionary
-        from random import sample
-        import time
+        import math
 
-        def br(topology):
-            vertices = Topology.Vertices(topology)
-            x = []
-            y = []
-            for aVertex in vertices:
-                x.append(Vertex.X(aVertex, mantissa=mantissa))
-                y.append(Vertex.Y(aVertex, mantissa=mantissa))
-            x_min = min(x)
-            y_min = min(y)
-            maxX = max(x)
-            maxY = max(y)
-            return [x_min, y_min, maxX, maxY]
+        def round_xyz(v):
+            x, y, z = Vertex.Coordinates(v)
+            return (
+                round(float(x), mantissa),
+                round(float(y), mantissa),
+                round(float(z), mantissa)
+            )
+
+        def deterministic_vertices(vertices):
+            return sorted(vertices, key=lambda v: round_xyz(v))
+
+        def vector(a, b):
+            ax, ay, az = round_xyz(a)
+            bx, by, bz = round_xyz(b)
+            return (bx - ax, by - ay, bz - az)
+
+        def cross(u, v):
+            return (
+                u[1] * v[2] - u[2] * v[1],
+                u[2] * v[0] - u[0] * v[2],
+                u[0] * v[1] - u[1] * v[0]
+            )
+
+        def magnitude(v):
+            return math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+
+        def are_three_collinear(v1, v2, v3, tol=tolerance):
+            u = vector(v1, v2)
+            v = vector(v1, v3)
+            c = cross(u, v)
+            return magnitude(c) <= tol
+
+        def all_vertices_collinear(vertices, tol=tolerance):
+            n = len(vertices)
+            if n < 3:
+                return True
+
+            a = vertices[0]
+            b = None
+            for i in range(1, n):
+                if magnitude(vector(a, vertices[i])) > tol:
+                    b = vertices[i]
+                    break
+
+            if b is None:
+                return True
+
+            for i in range(n):
+                vi = vertices[i]
+                if vi == a or vi == b:
+                    continue
+                if not are_three_collinear(a, b, vi, tol=tol):
+                    return False
+            return True
+
+        def first_non_collinear_triplet(vertices, tol=tolerance):
+            n = len(vertices)
+            for i in range(n - 2):
+                for j in range(i + 1, n - 1):
+                    for k in range(j + 1, n):
+                        if not are_three_collinear(vertices[i], vertices[j], vertices[k], tol=tol):
+                            return [vertices[i], vertices[j], vertices[k]]
+            return None
+
+        def triplet_normal(vertices3, tol=tolerance):
+            v1, v2, v3 = vertices3
+            u = vector(v1, v2)
+            v = vector(v1, v3)
+            n = cross(u, v)
+            mag = magnitude(n)
+            if mag <= tol:
+                return None
+            return [n[0] / mag, n[1] / mag, n[2] / mag]
+
+        def br(tp):
+            verts = Topology.Vertices(tp)
+            if not verts:
+                return None
+            xs = [round(Vertex.X(v), mantissa) for v in verts]
+            ys = [round(Vertex.Y(v), mantissa) for v in verts]
+            return [min(xs), min(ys), max(xs), max(ys)]
 
         if not Topology.IsInstance(topology, "Topology"):
             if not silent:
@@ -506,92 +581,124 @@ class Wire():
             return None
 
         vertices = Topology.SubTopologies(topology=topology, subTopologyType="vertex")
-        if Vertex.AreCollinear(vertices, mantissa=mantissa, tolerance=tolerance):
+        if not isinstance(vertices, list) or len(vertices) < 3:
+            if not silent:
+                print("Wire.BoundingRectangle - Error: The input topology parameter does not contain enough vertices to create a bounding rectangle. Returning None.")
+            return None
+
+        vertices = deterministic_vertices(vertices)
+
+        if all_vertices_collinear(vertices, tol=tolerance):
             if not silent:
                 print("Wire.BoundingRectangle - Error: All vertices of the input topology parameter are collinear and thus no bounding rectangle can be created. Returning None.")
             return None
-        start = time.time()
-        period = 0
-        result = True
-        while result and period < 30:
-            vList = sample(vertices, 3)
-            result = Vertex.AreCollinear(vList)
-            end = time.time()
-            period = end - start
-        if result == True:
+
+        vList = first_non_collinear_triplet(vertices, tol=tolerance)
+        if vList is None:
             if not silent:
-                print("Wire.BoundingRectangle - Error: Could not find three vertices that are not colinear within 30 seconds. Returning None.")
+                print("Wire.BoundingRectangle - Error: Could not find three vertices that are not collinear. Returning None.")
             return None
-        w = Wire.ByVertices(vList, close=True, tolerance=tolerance, silent=silent)
-        if not Topology.IsInstance(w, "Wire"):
+
+        normal = triplet_normal(vList, tol=tolerance)
+        if normal is None:
             if not silent:
-                print("Wire.BoundingRectangle - Error: Could not create wire from three vertices. Returning None.")
+                print("Wire.BoundingRectangle - Error: Could not compute a valid normal from the selected vertices. Returning None.")
             return None
-        f = Face.ByWire(w, tolerance=tolerance)
-        if not Topology.IsInstance(f, "Face"):
-            if not silent:
-                print("Wire.BoundingRectangle - Error: Could not create face from wire. Returning None.")
-            return None
-        f_origin = Topology.Centroid(f)
-        normal = Face.Normal(f, mantissa=mantissa)
+
+        f_origin = Topology.Centroid(topology)
         topology = Topology.Flatten(topology, origin=f_origin, direction=normal)
-        
+
         boundingRectangle = br(topology)
-        x_min = boundingRectangle[0]
-        y_min = boundingRectangle[1]
-        maxX = boundingRectangle[2]
-        maxY = boundingRectangle[3]
-        w = abs(maxX - x_min)
-        l = abs(maxY - y_min)
-        best_area = l*w
+        if not boundingRectangle:
+            if not silent:
+                print("Wire.BoundingRectangle - Error: Could not compute the flattened bounding rectangle. Returning None.")
+            return None
+
+        x_min, y_min, x_max, y_max = boundingRectangle
+        width = abs(x_max - x_min)
+        length = abs(y_max - y_min)
+        best_area = width * length
         orig_area = best_area
         best_z = 0
-        best_br = boundingRectangle
+        best_br = [x_min, y_min, x_max, y_max]
         origin = Topology.Centroid(topology)
-        optimize = min(max(optimize, 0), 10)
+
+        optimize = min(max(int(optimize), 0), 10)
         if optimize > 0:
-            factor = 1.0 - float(optimize)*0.05 # This will give a range of 0 to 0.5. Equivalent to a maximum 50% reduction in area.
+            factor = 1.0 - float(optimize) * 0.05
             flag = False
             for n in range(10, 0, -1):
                 if flag:
                     break
                 za = n
-                zb = 90+n
+                zb = 90 + n
                 zc = n
-                for z in range(za,zb,zc):
-                    if flag:
-                        break
+                for z in range(za, zb, zc):
                     t = Topology.Rotate(topology, origin=origin, axis=[0, 0, 1], angle=z)
-                    x_min, y_min, maxX, maxY = br(t)
-                    w = abs(maxX - x_min)
-                    l = abs(maxY - y_min)
-                    area = l*w
-                    if area <= orig_area*factor: # If new area is less than or equal to a certain percentage of the original area then break. e.g. if area is less than or qual to 50% of original area then break.
+                    bb = br(t)
+                    if not bb:
+                        continue
+                    bx_min, by_min, bx_max, by_max = bb
+                    bwidth = abs(bx_max - bx_min)
+                    blength = abs(by_max - by_min)
+                    area = bwidth * blength
+
+                    if area <= orig_area * factor:
                         best_area = area
                         best_z = z
-                        best_br = [x_min, y_min, maxX, maxY]
+                        best_br = [bx_min, by_min, bx_max, by_max]
                         flag = True
                         break
+
                     if area < best_area:
                         best_area = area
                         best_z = z
-                        best_br = [x_min, y_min, maxX, maxY]
-                        
-        else:
-            best_br = boundingRectangle
+                        best_br = [bx_min, by_min, bx_max, by_max]
+
         x_min, y_min, x_max, y_max = best_br
+
         vb1 = Vertex.ByCoordinates(x_min, y_min, 0)
         vb2 = Vertex.ByCoordinates(x_max, y_min, 0)
         vb3 = Vertex.ByCoordinates(x_max, y_max, 0)
         vb4 = Vertex.ByCoordinates(x_min, y_max, 0)
 
+        # Compute width and length before unflattening
+        x_min, y_min, z_min = Vertex.Coordinates(vb1)
+        x_max, y_max, z_max = Vertex.Coordinates(vb3)
+        width = x_max - x_min
+        length = y_max - y_min
+
+
+        # Unflatten the corners
+        vb1_uf = Topology.Unflatten(vb1, origin=f_origin, direction=normal)
+        vb3_uf = Topology.Unflatten(vb3, origin=f_origin, direction=normal)
+
+        x_min, y_min, z_min = Vertex.Coordinates(vb1_uf)
+        x_max, y_max, z_max = Vertex.Coordinates(vb3_uf)
+
         boundingRectangle = Wire.ByVertices([vb1, vb2, vb3, vb4], close=True, tolerance=tolerance, silent=silent)
+        if not Topology.IsInstance(boundingRectangle, "Wire"):
+            if not silent:
+                print("Wire.BoundingRectangle - Error: Could not create the bounding rectangle wire. Returning None.")
+            return None
+
         boundingRectangle = Topology.Rotate(boundingRectangle, origin=origin, axis=[0, 0, 1], angle=-best_z)
         boundingRectangle = Topology.Unflatten(boundingRectangle, origin=f_origin, direction=normal)
-        dictionary = Dictionary.ByKeysValues(["zrot", "xmin", "ymin", "xmax", "ymax", "width", "length"],
-                                             [best_z, x_min, y_min, x_max, y_max, (x_max - x_min), (y_max - y_min)])
 
-        #dictionary = Dictionary.ByKeysValues(["zrot"], [best_z])
+        dictionary = Dictionary.ByKeysValues(
+            ["zrot", "xmin", "ymin", "zmin", "xmax", "ymax", "zmax", "width", "length"],
+            [
+                round(best_z, mantissa),
+                round(x_min, mantissa),
+                round(y_min, mantissa),
+                round(z_min, mantissa),
+                round(x_max, mantissa),
+                round(y_max, mantissa),
+                round(z_max, mantissa),
+                round(width, mantissa),
+                round(length, mantissa)
+            ]
+        )
         boundingRectangle = Topology.SetDictionary(boundingRectangle, dictionary)
         return boundingRectangle
 
@@ -957,12 +1064,10 @@ class Wire():
             i = 0
             temp_return_wire = Topology.SelfMerge(Cluster.ByTopologies(wire_edges+bisectors_list))
             while not Topology.IsInstance(temp_return_wire, "wire") and i < 9:
-                print(i, "temp_return_wire was:", temp_return_wire)
                 verts = Topology.Vertices(temp_return_wire)
                 new_verts = Vertex.Fuse(verts, tolerance=tolerance*(i+1)*10)
                 temp_return_wire = Topology.ReplaceVertices(temp_return_wire, verticesA=verts, verticesB=new_verts)
                 temp_return_wire = Topology.SelfMerge(temp_return_wire)
-                print("temp_return_wire is:", temp_return_wire)
                 i += 1
             if transferDictionaries == True:
                 sel_vertices = Topology.Vertices(return_wire)
@@ -974,15 +1079,13 @@ class Wire():
                     c = Topology.Centroid(edge)
                     c = Topology.SetDictionary(c, d, silent=True)
                     sel_edges.append(c)
-                temp_return_wire = Topology.TransferDictionariesBySelectors(temp_return_wire, sel_vertices, tranVertices=True, numWorkers=numWorkers)
-                temp_return_wire = Topology.TransferDictionariesBySelectors(temp_return_wire, sel_edges, tranEdges=True, numWorkers=numWorkers)
+                temp_return_wire = Topology.TransferDictionariesBySelectors(temp_return_wire, sel_vertices, tranVertices=True, tolerance=tolerance*10, numWorkers=numWorkers)
+                temp_return_wire = Topology.TransferDictionariesBySelectors(temp_return_wire, sel_edges, tranEdges=True, tolerance=tolerance*10, numWorkers=numWorkers)
                 
             return_wire = temp_return_wire
         
         
         if not Topology.IsInstance(return_wire, "Wire"):
-            print("return_wire is:", return_wire)
-            Topology.Show(return_wire, backgroundColor="orange")
             if not silent:
                 print("Wire.ByOffset - Warning: The resulting wire is not well-formed, please check your offsets.")
         else:
@@ -5822,7 +5925,6 @@ class Wire():
                reverse: bool = False,
                bisectors: bool = False,
                transferDictionaries: bool = False,
-               removeCollinearEdges: bool = False,
                epsilon: float = 0.01,
                tolerance: float = 0.0001, 
                silent: bool = False,
@@ -5856,8 +5958,6 @@ class Wire():
             If set to True, The bisectors (seams) edges will be included in the returned ribbon (i.e. shell). If not, the returned ribbon is a face. Default is False.
         transferDictionaries : bool , optional
             If set to True, the dictionaries of the original wire, its edges, and its vertices are transfered to the created ribbon. Otherwise, they are not. Default is False.
-        removeCollinearEdges : bool , optional
-            If set to True, collinear edges are removed. Default is False.
         epsilon : float , optional
             The desired epsilon (another form of tolerance for shortest edge to remove). Default is 0.01. (This is set to a larger number as it was found to work better)
         tolerance : float , optional
@@ -5875,12 +5975,15 @@ class Wire():
             The created wire.
 
         """
+        from topologicpy.Vertex import Vertex
+        from topologicpy.Edge import Edge
         from topologicpy.Face import Face
         from topologicpy.Shell import Shell
         from topologicpy.Cluster import Cluster
         from topologicpy.Topology import Topology
         from topologicpy.Helper import Helper
         from topologicpy.Dictionary import Dictionary
+        from topologicpy.Vector import Vector
 
         wire_1 = Wire.ByOffset(wire,
                                offset = offset,
@@ -5891,7 +5994,7 @@ class Wire():
                                stepOffsetKeyB = stepOffsetKeyB,
                                reverse = reverse,
                                bisectors = False,
-                               transferDictionaries = True,
+                               transferDictionaries = False,
                                epsilon = epsilon,
                                tolerance = tolerance,
                                silent = silent,
@@ -5905,74 +6008,72 @@ class Wire():
                                stepOffsetKeyA = stepOffsetKeyA,
                                stepOffsetKeyB = stepOffsetKeyB,
                                reverse = reverse,
-                               bisectors = True,
+                               bisectors = False,
                                transferDictionaries = False,
                                epsilon = epsilon,
                                tolerance = tolerance,
                                silent = silent,
                                numWorkers = numWorkers)
         
-        final_wire = Topology.SelfMerge(Cluster.ByTopologies(Topology.Edges(wire_1)+Topology.Edges(wire_2)))
-        Topology.Show(final_wire, backgroundColor="orange", width=400, height=400)
-        #final_wire = Wire.ByEdges(Topology.Edges(wire_1)+Topology.Edges(wire_2))
-        temp_edges = Topology.Edges(final_wire)
-        for t_e in temp_edges:
-            d = Topology.Dictionary(t_e)
-        #final_wire = Topology.SelfMerge(Cluster.ByTopologies(Topology.Edges(wire_1)+Topology.Edges(wire_2)))
-        cycles = Wire.Cycles(final_wire, maxVertices=4, transferDictionaries=True)
-
-        faces = []
-        for cycle in cycles:
-            c_edges = Topology.Edges(cycle)
-            for c_e in c_edges:
-                d = Topology.Dictionary(c_e)
-                if len(Dictionary.Keys(d)) > 0:
-                    break
-            f = Face.ByWire(cycle)
-            if removeCollinearEdges:
-                f = Topology.RemoveCollinearEdges(f)
-            if Topology.IsInstance(f, "face"):
-                f = Topology.SetDictionary(f, d)
-                faces.append(f)
-
-        if Wire.IsClosed(wire):
-            areas = [Face.Area(f) for f in faces]
-            faces = Helper.Sort(faces, areas)
-            faces = [f for f in faces[:-1]]
-            shell = Shell.ByFaces(faces)
-            if transferDictionaries:
-                all_dictionaries = []
-                selectors = []
-                for g_f in faces:
-                    d = Topology.Dictionary(g_f)
-                    if len(Dictionary.Keys(d)) > 0:
-                        s = Topology.InternalVertex(g_f)
-                        s = Topology.SetDictionary(s, d)
-                        selectors.append(s)
-                        all_dictionaries.append(d)
-                if len(selectors) > 0:
-                    shell = Topology.TransferDictionariesBySelectors(shell, selectors, tranFaces=True)
-            s_faces = Topology.Faces(shell)
-            good_faces = []
-            for s_f in s_faces:
-                f_edges = Topology.Edges(s_f)
-                for f_e in f_edges:
-                    super_faces = Topology.SuperTopologies(f_e, hostTopology=shell, topologyType="face")
-                    if len(super_faces) == 1:
-                        if removeCollinearEdges:
-                            s_f = Topology.RemoveCollinearEdges(s_f)
-                        good_faces.append(s_f)
-                        break
-        else:
-            good_faces = faces
+        b_cluster = Wire.Bisectors(wire_1,
+                               offset = thickness,
+                               offsetKey = thicknessKey,
+                               stepOffsetA = stepOffsetA,
+                               stepOffsetB = stepOffsetB,
+                               stepOffsetKeyA = stepOffsetKeyA,
+                               stepOffsetKeyB = stepOffsetKeyB,
+                               reverse = reverse,
+                               transferDictionaries = False,
+                               epsilon = epsilon,
+                               tolerance = tolerance,
+                               silent = silent,
+                               numWorkers = numWorkers)
         
+        final_wire = Topology.Merge(wire_1, wire_2, tolerance=tolerance)
+        # Fuse vertices:
+        vertices = Topology.Vertices(final_wire)
+        new_vertices = Vertex.Fuse(vertices, tolerance=tolerance)
+        final_wire = Topology.ReplaceVertices(final_wire, verticesA=vertices, verticesB=new_vertices)
+
+        b_edges = [Edge.SetLength(e, Edge.Length(e)+epsilon) for e in Topology.Edges(b_cluster)]
+        final_wire = Cluster.ByTopologies(Topology.Edges(final_wire)+b_edges)
+        
+        # Build selectors list to find the correct faces later
+        selectors = []
+        all_dictionaries = []
+        edges_1 = Topology.Edges(wire)
+        for i, edge_1 in enumerate(edges_1):
+            d = Topology.Dictionary(edge_1)
+            o = Dictionary.ValueAtKey(d, offsetKey, offset)
+            t = Dictionary.ValueAtKey(d, thicknessKey, thickness)
+            c = Topology.Centroid(edge_1)
+            if reverse == True:
+                fac = -1
+            else:
+                fac = 1
+            s = Vertex.ByOffset2DRelativeToEdge(c, edge_1, offset = (o+t*0.5)*fac, tolerance = tolerance)
+            all_dictionaries.append(d)
+            s = Topology.SetDictionary(s, d)
+            selectors.append(s)
+        bounding_rect = Wire.BoundingRectangle(final_wire)
+        bounding_face = Face.ByWire(bounding_rect)
+        bounding_shell = Topology.Slice(bounding_face, final_wire)
+
+        shell_faces = Topology.Faces(bounding_shell)
+        good_faces = []
+        for shell_face in shell_faces:
+            for s in selectors:
+                if Vertex.IsInternal(s, shell_face, tolerance=epsilon):
+                    good_faces.append(shell_face)
+        
+        Topology.Show(shell_faces, selectors, backgroundColor="orange", faceColor="red")
         shell = Shell.ByFaces(good_faces)
+        print("Shell is:", shell)
         
         if Topology.IsInstance(shell, "shell"):
+            Topology.Show(shell, backgroundColor="orange", faceColor="red")
             if transferDictionaries:
-                for s in selectors:
-                    d = Topology.Dictionary(s)
-                shell = Topology.TransferDictionariesBySelectors(shell, selectors, tranFaces=True, tolerance=0.001)
+                shell = Topology.TransferDictionariesBySelectors(shell, selectors, tranFaces=True, tolerance=epsilon)
             if Topology.IsInstance(shell, "shell"):
                 # If the bisectors are False, transform the shell into a face and merge and transfer dictionaries.
                 if bisectors == False:
