@@ -1,0 +1,351 @@
+OS:Version,
+  {11111111-1111-1111-1111-111111111111}, !- Handle
+  3.10.0;                                 !- Version Identifier
+
+OS:Site,
+  {11111111-1111-1111-1111-111111111112}, !- Handle
+  Simple Residential Site,                !- Name
+  37.0400,                                !- Latitude {deg}
+  22.1100,                                !- Longitude {deg}
+  2,                                      !- Time Zone {hr}
+  0,                                      !- Elevation {m}
+  Suburbs;                                !- Terrain
+
+OS:SimulationControl,
+  {11111111-1111-1111-1111-111111111113}, !- Handle
+  Yes,                                    !- Do Zone Sizing Calculation
+  Yes,                                    !- Do System Sizing Calculation
+  Yes,                                    !- Do Plant Sizing Calculation
+  No,                                     !- Run Simulation for Sizing Periods
+  Yes,                                    !- Run Simulation for Weather File Run Periods
+  0.04,                                   !- Loads Convergence Tolerance Value {W}
+  0.2,                                    !- Temperature Convergence Tolerance Value {deltaC}
+  FullInteriorAndExterior,                !- Solar Distribution
+  25,                                     !- Maximum Number of Warmup Days
+  6;                                      !- Minimum Number of Warmup Days
+
+OS:Timestep,
+  {11111111-1111-1111-1111-111111111114}, !- Handle
+  4;                                      !- Number of Timesteps per Hour
+
+OS:RunPeriod,
+  {11111111-1111-1111-1111-111111111115}, !- Handle
+  Run Period 1,                           !- Name
+  1,                                      !- Begin Month
+  1,                                      !- Begin Day of Month
+  12,                                     !- End Month
+  31,                                     !- End Day of Month
+  No,                                     !- Use Weather File Holidays and Special Days
+  No,                                     !- Use Weather File Daylight Saving Period
+  No,                                     !- Apply Weekend Holiday Rule
+  Yes,                                    !- Use Weather File Rain Indicators
+  Yes,                                    !- Use Weather File Snow Indicators
+  1;                                      !- Number of Times Runperiod to be Repeated
+
+OS:YearDescription,
+  {11111111-1111-1111-1111-111111111116}, !- Handle
+  ,                                       !- Calendar Year
+  Sunday;                                 !- Day of Week for Start Day
+
+OS:ScheduleTypeLimits,
+  {11111111-1111-1111-1111-111111111117}, !- Handle
+  Fraction Limits,                        !- Name
+  0,                                      !- Lower Limit Value
+  1,                                      !- Upper Limit Value
+  Continuous,                             !- Numeric Type
+  Dimensionless;                          !- Unit Type
+
+OS:ScheduleTypeLimits,
+  {11111111-1111-1111-1111-111111111118}, !- Handle
+  On Off Limits,                          !- Name
+  0,                                      !- Lower Limit Value
+  1,                                      !- Upper Limit Value
+  Discrete,                               !- Numeric Type
+  Availability;                           !- Unit Type
+
+OS:ScheduleTypeLimits,
+  {11111111-1111-1111-1111-111111111119}, !- Handle
+  Activity Level Limits,                  !- Name
+  ,                                       !- Lower Limit Value
+  ,                                       !- Upper Limit Value
+  Continuous,                             !- Numeric Type
+  ActivityLevel;                          !- Unit Type
+
+OS:Schedule:Ruleset,
+  {11111111-1111-1111-1111-111111111120}, !- Handle
+  FRACTION_ALWAYS_ON,                     !- Name
+  {11111111-1111-1111-1111-111111111117}, !- Schedule Type Limits Name
+  {11111111-1111-1111-1111-111111111121}; !- Default Day Schedule Name
+
+OS:Schedule:Day,
+  {11111111-1111-1111-1111-111111111121}, !- Handle
+  Fraction Day Always On,                 !- Name
+  {11111111-1111-1111-1111-111111111117}, !- Schedule Type Limits Name
+  No,                                     !- Interpolate to Timestep
+  24,                                     !- Hour 1
+  0,                                      !- Minute 1
+  1;                                      !- Value Until Time 1
+
+OS:Schedule:Ruleset,
+  {11111111-1111-1111-1111-111111111122}, !- Handle
+  Residential Occupancy Schedule,         !- Name
+  {11111111-1111-1111-1111-111111111117}, !- Schedule Type Limits Name
+  {11111111-1111-1111-1111-111111111123}; !- Default Day Schedule Name
+
+OS:Schedule:Day,
+  {11111111-1111-1111-1111-111111111123}, !- Handle
+  Residential Occupancy Day,              !- Name
+  {11111111-1111-1111-1111-111111111117}, !- Schedule Type Limits Name
+  No,                                     !- Interpolate to Timestep
+  24,                                     !- Hour 1
+  0,                                      !- Minute 1
+  0.6;                                    !- Value Until Time 1
+
+OS:Schedule:Ruleset,
+  {11111111-1111-1111-1111-111111111124}, !- Handle
+  Residential Lighting Schedule,          !- Name
+  {11111111-1111-1111-1111-111111111117}, !- Schedule Type Limits Name
+  {11111111-1111-1111-1111-111111111125}; !- Default Day Schedule Name
+
+OS:Schedule:Day,
+  {11111111-1111-1111-1111-111111111125}, !- Handle
+  Residential Lighting Day,               !- Name
+  {11111111-1111-1111-1111-111111111117}, !- Schedule Type Limits Name
+  No,                                     !- Interpolate to Timestep
+  24,                                     !- Hour 1
+  0,                                      !- Minute 1
+  0.7;                                    !- Value Until Time 1
+
+OS:Schedule:Ruleset,
+  {11111111-1111-1111-1111-111111111126}, !- Handle
+  Residential Equipment Schedule,         !- Name
+  {11111111-1111-1111-1111-111111111117}, !- Schedule Type Limits Name
+  {11111111-1111-1111-1111-111111111127}; !- Default Day Schedule Name
+
+OS:Schedule:Day,
+  {11111111-1111-1111-1111-111111111127}, !- Handle
+  Residential Equipment Day,              !- Name
+  {11111111-1111-1111-1111-111111111117}, !- Schedule Type Limits Name
+  No,                                     !- Interpolate to Timestep
+  24,                                     !- Hour 1
+  0,                                      !- Minute 1
+  0.6;                                    !- Value Until Time 1
+
+OS:Schedule:Ruleset,
+  {11111111-1111-1111-1111-111111111128}, !- Handle
+  Residential Activity Schedule,          !- Name
+  {11111111-1111-1111-1111-111111111119}, !- Schedule Type Limits Name
+  {11111111-1111-1111-1111-111111111129}; !- Default Day Schedule Name
+
+OS:Schedule:Day,
+  {11111111-1111-1111-1111-111111111129}, !- Handle
+  Residential Activity Day,               !- Name
+  {11111111-1111-1111-1111-111111111119}, !- Schedule Type Limits Name
+  No,                                     !- Interpolate to Timestep
+  24,                                     !- Hour 1
+  0,                                      !- Minute 1
+  120;                                    !- Value Until Time 1
+
+OS:DefaultScheduleSet,
+  {11111111-1111-1111-1111-111111111130}, !- Handle
+  Residential Default Schedule Set,       !- Name
+  {11111111-1111-1111-1111-111111111120}, !- Hours of Operation Schedule Name
+  {11111111-1111-1111-1111-111111111122}, !- Number of People Schedule Name
+  {11111111-1111-1111-1111-111111111128}, !- People Activity Level Schedule Name
+  {11111111-1111-1111-1111-111111111124}, !- Lighting Schedule Name
+  {11111111-1111-1111-1111-111111111126}, !- Electric Equipment Schedule Name
+  ,                                       !- Gas Equipment Schedule Name
+  ,                                       !- Hot Water Equipment Schedule Name
+  {11111111-1111-1111-1111-111111111120}, !- Infiltration Schedule Name
+  ,                                       !- Steam Equipment Schedule Name
+  ;                                       !- Other Equipment Schedule Name
+
+OS:People:Definition,
+  {11111111-1111-1111-1111-111111111131}, !- Handle
+  Residential People Definition,          !- Name
+  People/Area,                            !- Number of People Calculation Method
+  ,                                       !- Number of People {people}
+  0.04,                                   !- People per Space Floor Area {person/m2}
+  ,                                       !- Space Floor Area per Person {m2/person}
+  0.3;                                    !- Fraction Radiant
+
+OS:Lights:Definition,
+  {11111111-1111-1111-1111-111111111132}, !- Handle
+  Residential Lights Definition,          !- Name
+  Watts/Area,                             !- Design Level Calculation Method
+  ,                                       !- Lighting Level {W}
+  5.0,                                    !- Watts per Space Floor Area {W/m2}
+  ;                                       !- Watts per Person {W/person}
+
+OS:ElectricEquipment:Definition,
+  {11111111-1111-1111-1111-111111111133}, !- Handle
+  Residential Equipment Definition,       !- Name
+  Watts/Area,                             !- Design Level Calculation Method
+  ,                                       !- Design Level {W}
+  8.0,                                    !- Watts per Space Floor Area {W/m2}
+  ;                                       !- Watts per Person {W/person}
+
+OS:Material,
+  {11111111-1111-1111-1111-111111111134}, !- Handle
+  Exterior Wall Material,                 !- Name
+  MediumRough,                            !- Roughness
+  0.20,                                   !- Thickness {m}
+  0.50,                                   !- Conductivity {W/m-K}
+  800,                                    !- Density {kg/m3}
+  900;                                    !- Specific Heat {J/kg-K}
+
+OS:Material,
+  {11111111-1111-1111-1111-111111111135}, !- Handle
+  Roof Material,                          !- Name
+  MediumRough,                            !- Roughness
+  0.25,                                   !- Thickness {m}
+  0.30,                                   !- Conductivity {W/m-K}
+  700,                                    !- Density {kg/m3}
+  1000;                                   !- Specific Heat {J/kg-K}
+
+OS:Material,
+  {11111111-1111-1111-1111-111111111136}, !- Handle
+  Ground Floor Material,                  !- Name
+  MediumRough,                            !- Roughness
+  0.20,                                   !- Thickness {m}
+  1.40,                                   !- Conductivity {W/m-K}
+  2200,                                   !- Density {kg/m3}
+  900;                                    !- Specific Heat {J/kg-K}
+
+OS:Material,
+  {11111111-1111-1111-1111-111111111137}, !- Handle
+  Interior Partition Material,            !- Name
+  MediumSmooth,                           !- Roughness
+  0.10,                                   !- Thickness {m}
+  0.40,                                   !- Conductivity {W/m-K}
+  900,                                    !- Density {kg/m3}
+  900;                                    !- Specific Heat {J/kg-K}
+
+OS:Material,
+  {11111111-1111-1111-1111-111111111138}, !- Handle
+  Exterior Door Material,                 !- Name
+  MediumSmooth,                           !- Roughness
+  0.04,                                   !- Thickness {m}
+  0.18,                                   !- Conductivity {W/m-K}
+  600,                                    !- Density {kg/m3}
+  1200;                                   !- Specific Heat {J/kg-K}
+
+OS:WindowMaterial:SimpleGlazingSystem,
+  {11111111-1111-1111-1111-111111111139}, !- Handle
+  Simple Window Material,                 !- Name
+  2.7,                                    !- U-Factor {W/m2-K}
+  0.60,                                   !- Solar Heat Gain Coefficient
+  0.70;                                   !- Visible Transmittance
+
+OS:Construction,
+  {11111111-1111-1111-1111-111111111140}, !- Handle
+  Exterior Wall Construction,             !- Name
+  ,                                       !- Surface Rendering Name
+  {11111111-1111-1111-1111-111111111134}; !- Layer 1
+
+OS:Construction,
+  {11111111-1111-1111-1111-111111111141}, !- Handle
+  Roof Construction,                      !- Name
+  ,                                       !- Surface Rendering Name
+  {11111111-1111-1111-1111-111111111135}; !- Layer 1
+
+OS:Construction,
+  {11111111-1111-1111-1111-111111111142}, !- Handle
+  Ground Floor Construction,              !- Name
+  ,                                       !- Surface Rendering Name
+  {11111111-1111-1111-1111-111111111136}; !- Layer 1
+
+OS:Construction,
+  {11111111-1111-1111-1111-111111111143}, !- Handle
+  Interior Partition Construction,        !- Name
+  ,                                       !- Surface Rendering Name
+  {11111111-1111-1111-1111-111111111137}; !- Layer 1
+
+OS:Construction,
+  {11111111-1111-1111-1111-111111111144}, !- Handle
+  Exterior Door Construction,             !- Name
+  ,                                       !- Surface Rendering Name
+  {11111111-1111-1111-1111-111111111138}; !- Layer 1
+
+OS:Construction,
+  {11111111-1111-1111-1111-111111111145}, !- Handle
+  Window Construction,                    !- Name
+  ,                                       !- Surface Rendering Name
+  {11111111-1111-1111-1111-111111111139}; !- Layer 1
+
+OS:DefaultSurfaceConstructions,
+  {11111111-1111-1111-1111-111111111146}, !- Handle
+  Residential Exterior Surface Constructions, !- Name
+  {11111111-1111-1111-1111-111111111142}, !- Floor Construction Name
+  {11111111-1111-1111-1111-111111111140}, !- Wall Construction Name
+  {11111111-1111-1111-1111-111111111141}; !- Roof Ceiling Construction Name
+
+OS:DefaultSurfaceConstructions,
+  {11111111-1111-1111-1111-111111111147}, !- Handle
+  Residential Interior Surface Constructions, !- Name
+  {11111111-1111-1111-1111-111111111142}, !- Floor Construction Name
+  {11111111-1111-1111-1111-111111111143}, !- Wall Construction Name
+  {11111111-1111-1111-1111-111111111141}; !- Roof Ceiling Construction Name
+
+OS:DefaultSurfaceConstructions,
+  {11111111-1111-1111-1111-111111111148}, !- Handle
+  Residential Ground Surface Constructions, !- Name
+  {11111111-1111-1111-1111-111111111142}, !- Floor Construction Name
+  {11111111-1111-1111-1111-111111111140}, !- Wall Construction Name
+  {11111111-1111-1111-1111-111111111141}; !- Roof Ceiling Construction Name
+
+OS:DefaultSubSurfaceConstructions,
+  {11111111-1111-1111-1111-111111111149}, !- Handle
+  Residential Exterior SubSurface Constructions, !- Name
+  {11111111-1111-1111-1111-111111111145}, !- Fixed Window Construction Name
+  {11111111-1111-1111-1111-111111111145}, !- Operable Window Construction Name
+  {11111111-1111-1111-1111-111111111144}, !- Door Construction Name
+  {11111111-1111-1111-1111-111111111145}, !- Glass Door Construction Name
+  {11111111-1111-1111-1111-111111111144}, !- Overhead Door Construction Name
+  {11111111-1111-1111-1111-111111111145}, !- Skylight Construction Name
+  {11111111-1111-1111-1111-111111111145}, !- Tubular Daylight Dome Construction Name
+  {11111111-1111-1111-1111-111111111145}; !- Tubular Daylight Diffuser Construction Name
+
+OS:DefaultSubSurfaceConstructions,
+  {11111111-1111-1111-1111-111111111150}, !- Handle
+  Residential Interior SubSurface Constructions, !- Name
+  {11111111-1111-1111-1111-111111111145}, !- Fixed Window Construction Name
+  {11111111-1111-1111-1111-111111111145}, !- Operable Window Construction Name
+  {11111111-1111-1111-1111-111111111144}, !- Door Construction Name
+  {11111111-1111-1111-1111-111111111145}, !- Glass Door Construction Name
+  ,                                       !- Overhead Door Construction Name
+  {11111111-1111-1111-1111-111111111145}, !- Skylight Construction Name
+  {11111111-1111-1111-1111-111111111145}, !- Tubular Daylight Dome Construction Name
+  {11111111-1111-1111-1111-111111111145}; !- Tubular Daylight Diffuser Construction Name
+
+OS:DefaultConstructionSet,
+  {11111111-1111-1111-1111-111111111151}, !- Handle
+  Residential Default Construction Set,   !- Name
+  {11111111-1111-1111-1111-111111111146}, !- Default Exterior Surface Constructions Name
+  {11111111-1111-1111-1111-111111111147}, !- Default Interior Surface Constructions Name
+  {11111111-1111-1111-1111-111111111148}, !- Default Ground Contact Surface Constructions Name
+  {11111111-1111-1111-1111-111111111149}, !- Default Exterior SubSurface Constructions Name
+  {11111111-1111-1111-1111-111111111150}, !- Default Interior SubSurface Constructions Name
+  {11111111-1111-1111-1111-111111111143}, !- Interior Partition Construction Name
+  ,                                       !- Space Shading Construction Name
+  ,                                       !- Building Shading Construction Name
+  ,                                       !- Site Shading Construction Name
+  ;                                       !- Adiabatic Surface Construction Name
+
+OS:SpaceType,
+  {11111111-1111-1111-1111-111111111152}, !- Handle
+  Generic Room,                           !- Name
+  {11111111-1111-1111-1111-111111111151}, !- Default Construction Set Name
+  {11111111-1111-1111-1111-111111111130}, !- Default Schedule Set Name
+  ,                                       !- Group Rendering Name
+  ;                                       !- Design Specification Outdoor Air Object Name
+
+OS:Building,
+  {11111111-1111-1111-1111-111111111153}, !- Handle
+  Simple Residential Building,            !- Name
+  ,                                       !- Building Sector Type
+  0,                                      !- North Axis {deg}
+  ,                                       !- Nominal Floor to Floor Height {m}
+  {11111111-1111-1111-1111-111111111152}, !- Space Type Name
+  {11111111-1111-1111-1111-111111111151}, !- Default Construction Set Name
+  {11111111-1111-1111-1111-111111111130}; !- Default Schedule Set Name

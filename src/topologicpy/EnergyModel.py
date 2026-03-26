@@ -112,25 +112,25 @@ class EnergyModel:
         else:
             osModel = osModel.get()
         return osModel
-    
+
     @staticmethod
     def ByTopology(building,
-                   shadingSurfaces  = None,
-                   osModelPath : str = None,
-                   weatherFilePath : str = None,
-                   designDayFilePath  : str = None,
-                   floorLevels : list = None,
-                   buildingName : str = "TopologicBuilding",
-                   buildingType : str = "Commercial",
-                   northAxis : float = 0.0,
-                   glazingRatio : float = 0.0,
-                   coolingTemp : float = 25.0,
-                   heatingTemp : float = 20.0,
-                   defaultSpaceType : str = "189.1-2009 - Office - WholeBuilding - Lg Office - CZ4-8",
-                   spaceNameKey : str = "TOPOLOGIC_name",
-                   spaceTypeKey : str = "TOPOLOGIC_type",
-                   mantissa : int = 6,
-                   tolerance : float = 0.0001):
+                shadingSurfaces  = None,
+                osModelPath : str = None,
+                weatherFilePath : str = None,
+                designDayFilePath  : str = None,
+                floorLevels : list = None,
+                buildingName : str = "TopologicBuilding",
+                buildingType : str = "Commercial",
+                northAxis : float = 0.0,
+                glazingRatio : float = 0.0,
+                coolingTemp : float = 25.0,
+                heatingTemp : float = 20.0,
+                defaultSpaceType : str = "189.1-2009 - Office - WholeBuilding - Lg Office - CZ4-8",
+                spaceNameKey : str = "TOPOLOGIC_name",
+                spaceTypeKey : str = "TOPOLOGIC_type",
+                mantissa : int = 6,
+                tolerance : float = 0.0001):
         """
             Creates an EnergyModel from the input topology and parameters.
 
@@ -141,20 +141,20 @@ class EnergyModel:
         shadingSurfaces : topologic_core.Topology , optional
             The input topology for shading surfaces. Default is None.
         osModelPath : str , optional
-            The path to the template OSM file. Default is "./assets/EnergyModel/OSMTemplate-OfficeBuilding-3.5.0.osm".
+            The path to the template OSM file. Default is "./assets/EnergyModel/OSMTemplate-OfficeBuilding-3.10.0.osm".
         weatherFilePath : str , optional
             The input energy plus weather (epw) file. Default is "./assets/EnergyModel/GBR_London.Gatwick.037760_IWEC.epw".
         designDayFilePath : str , optional
-            The input design day (ddy) file path. Default is "./assets/EnergyModel/GBR_London.Gatwick.037760_IWEC.ddy",
+            The input design day (ddy) file path. Default is "./assets/EnergyModel/GBR_London.Gatwick.037760_IWEC.ddy".
         floorLevels : list , optional
             The list of floor level Z heights including the lowest most and the highest most levels. If set to None, this method will attempt to
-            find the floor levels from the horizontal faces of the input topology
+            find the floor levels from the horizontal faces of the input topology.
         buildingName : str , optional
             The desired name of the building. Default is "TopologicBuilding".
         buildingType : str , optional
             The building type. Default is "Commercial".
         defaultSpaceType : str , optional
-            The default space type to apply to spaces that do not have a type assigned in their dictionary. Default is "189.1-2009 - Office - WholeBuilding - Lg Office - CZ4-8".
+            The default space type to apply to spaces that do not have a type assigned in their dictionary.
         northAxis : float , optional
             The counter-clockwise angle in degrees from the positive Y-axis representing the direction of the north axis. Default is 0.0.
         glazingRatio : float , optional
@@ -162,11 +162,11 @@ class EnergyModel:
         coolingTemp : float , optional
             The desired temperature in degrees at which the cooling system should activate. Default is 25.0.
         heatingTemp : float , optional
-            The desired temperature in degrees at which the heating system should activate. Default is 25.0..
+            The desired temperature in degrees at which the heating system should activate. Default is 20.0.
         spaceNameKey : str , optional
-            The dictionary key to use to find the space name value. Default is "Name".
+            The dictionary key to use to find the space name value. Default is "TOPOLOGIC_name".
         spaceTypeKey : str , optional
-            The dictionary key to use to find the space type value. Default is "Type".
+            The dictionary key to use to find the space type value. Default is "TOPOLOGIC_type".
         mantissa : int , optional
             The number of decimal places to round the result to. Default is 6.
         tolerance : float , optional
@@ -178,91 +178,41 @@ class EnergyModel:
             The created OSM model.
 
         """
+        import math
+        import os
+        import warnings
+
         from topologicpy.Vertex import Vertex
         from topologicpy.Face import Face
         from topologicpy.Cell import Cell
         from topologicpy.Topology import Topology
         from topologicpy.Dictionary import Dictionary
-        from topologicpy.Aperture import Aperture
-        try:
-            import openstudio
-            openstudio.Logger.instance().standardOutLogger().setLogLevel(openstudio.Fatal)
-        except:
-            print("EnergyModel.ByTopology - Information: Installing required openstudio library.")
-            try:
-                os.system("pip install openstudio")
-            except:
-                os.system("pip install openstudio --user")
-            try:
-                import openstudio
-                openstudio.Logger.instance().standardOutLogger().setLogLevel(openstudio.Fatal)
-                print("EnergyModel.ByTopology - Information: openstudio library installed correctly.")
-            except:
-                warnings.warn("EnergyModel.ByTopology - Error: Could not import openstudio.Please try to install openstudio manually. Returning None.")
-                return None
 
-
-        def load_openstudio_model(osm_path: str, allow_newer: bool = True):
-            """
-            Load an OpenStudio .osm file and return an openstudio.model.Model.
-            Uses loadModelFromString to avoid SWIG path overload issues.
-            """
-            import os
-
-            if not os.path.exists(osm_path):
-                raise FileNotFoundError(osm_path)
-
-            vt = openstudio.osversion.VersionTranslator()
-            if allow_newer:
-                vt.setAllowNewerVersions(True)
-
-            # 1) Robust path-agnostic route: read text and load from string
-            with open(osm_path, "r", encoding="utf-8") as f:
-                txt = f.read()
-            model_opt = vt.loadModelFromString(txt)  # <- avoids path type mismatches
-
-            # 2) Fallback: try the filesystem-path overloads if needed
-            if (not model_opt) or (not model_opt.is_initialized()):
-                os_path = None
-                for maker in (
-                    lambda s: getattr(openstudio, "path")(s),
-                    lambda s: getattr(openstudio, "toPath")(s),
-                    lambda s: getattr(openstudio.openstudioutilitiescore, "toPath")(s),
-                ):
-                    try:
-                        os_path = maker(osm_path)
-                        break
-                    except Exception:
-                        pass
-                if os_path is not None:
-                    try:
-                        model_opt = vt.loadModel(os_path)
-                    except TypeError:
-                        model_opt = openstudio.model.Model.load(os_path)
-
-            if (not model_opt) or (not model_opt.is_initialized()):
-                raise RuntimeError(f"Failed to load OpenStudio model from: {osm_path}")
-
-            model = model_opt.get()
-            return model
-    
         def getKeyName(d, keyName):
-            keys = d.Keys()
+            if d is None or keyName is None:
+                return None
+            try:
+                keys = d.Keys()
+            except Exception:
+                return None
             for key in keys:
-                if key.lower() == keyName.lower():
+                if str(key).lower() == str(keyName).lower():
                     return key
             return None
-        
+
         def createUniqueName(name, nameList, number):
+            if name is None:
+                return None
+            name = str(name)
             if number > 9999:
-                return name+"_9999"
-            if not (name in nameList):
+                return name + "_9999"
+            if name not in nameList:
                 return name
-            elif not ((name+"_"+"{:04d}".format(number)) in nameList):
-                return name+"_"+"{:04d}".format(number)
-            else:
-                return createUniqueName(name,nameList, number+1)
-        
+            candidate = name + "_" + "{:04d}".format(number)
+            if candidate not in nameList:
+                return candidate
+            return createUniqueName(name, nameList, number + 1)
+
         def getFloorLevels(building):
             from topologicpy.Vertex import Vertex
             from topologicpy.Cell import Cell
@@ -270,250 +220,481 @@ class EnergyModel:
 
             if Topology.IsInstance(building, "CellComplex"):
                 d = CellComplex.Decompose(building)
-                bhf = d['bottomHorizontalFaces']
-                ihf = d['internalHorizontalFaces']
-                thf = d ['topHorizontalFaces']
-                hf = bhf+ihf+thf
+                hf = d['bottomHorizontalFaces'] + d['internalHorizontalFaces'] + d['topHorizontalFaces']
             elif Topology.IsInstance(building, "Cell"):
                 d = Cell.Decompose(building)
-                bhf = d['bottomHorizontalFaces']
-                thf = d ['topHorizontalFaces']
-                hf = bhf+thf
+                hf = d['bottomHorizontalFaces'] + d['topHorizontalFaces']
             else:
                 return None
-            floorLevels = [Vertex.Z(Topology.Centroid(f), mantissa=mantissa) for f in hf]
-            floorLevels = list(set(floorLevels))
-            floorLevels.sort()
-            return floorLevels
-        
+            levels = [Vertex.Z(Topology.Centroid(f), mantissa=mantissa) for f in hf]
+            levels = sorted(list(set(levels)))
+            return levels
+
+        def safe_optional_get(opt):
+            try:
+                if opt and opt.is_initialized():
+                    return opt.get()
+            except Exception:
+                pass
+            return None
+
+        def safe_name(model_object, fallback=""):
+            try:
+                name_opt = model_object.name()
+                if name_opt.is_initialized():
+                    return name_opt.get()
+            except Exception:
+                pass
+            return fallback
+
+        def surface_tilt_degrees(osSurface, openstudio):
+            try:
+                up = openstudio.Vector3d(0, 0, 1)
+                dot = osSurface.outwardNormal().dot(up)
+                dot = max(-1.0, min(1.0, dot))
+                return math.degrees(math.acos(dot))
+            except Exception:
+                return 90.0
+
+        def vertices_to_point3d_list(vertices, openstudio):
+            pts = []
+            for v in vertices:
+                pts.append(
+                    openstudio.Point3d(
+                        Vertex.X(v, mantissa=mantissa),
+                        Vertex.Y(v, mantissa=mantissa),
+                        Vertex.Z(v, mantissa=mantissa)
+                    )
+                )
+            return pts
+
+        def orient_surface_vertices(points, face_normal, surface_obj, openstudio):
+            try:
+                osFaceNormal = openstudio.Vector3d(face_normal[0], face_normal[1], face_normal[2])
+                osFaceNormal.normalize()
+                if osFaceNormal.dot(surface_obj.outwardNormal()) < 1e-6:
+                    surface_obj.setVertices(list(reversed(points)))
+            except Exception:
+                pass
+
+        def os_path(path_str, openstudio):
+            try:
+                return openstudio.openstudioutilitiescore.toPath(path_str)
+            except Exception:
+                pass
+            try:
+                return openstudio.toPath(path_str)
+            except Exception:
+                pass
+            try:
+                return openstudio.path(path_str)
+            except Exception:
+                pass
+            raise RuntimeError(f"EnergyModel.ByTopology - Could not convert path to OpenStudio path: {path_str}")
+
+        def first_or_none(seq):
+            try:
+                return seq[0] if len(seq) > 0 else None
+            except Exception:
+                return None
+
+        try:
+            import openstudio
+            openstudio.Logger.instance().standardOutLogger().setLogLevel(openstudio.Fatal)
+        except Exception:
+            print("EnergyModel.ByTopology - Information: Installing required openstudio library.")
+            try:
+                os.system("pip install openstudio")
+            except Exception:
+                os.system("pip install openstudio --user")
+            try:
+                import openstudio
+                openstudio.Logger.instance().standardOutLogger().setLogLevel(openstudio.Fatal)
+                print("EnergyModel.ByTopology - Information: openstudio library installed correctly.")
+            except Exception:
+                warnings.warn("EnergyModel.ByTopology - Error: Could not import openstudio. Please install openstudio manually. Returning None.")
+                return None
+
         if not osModelPath:
-            import os
             osModelPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets", "EnergyModel", "OSMTemplate-OfficeBuilding-3.10.0.osm")
-        if not weatherFilePath or not designDayFilePath:
-            import os
+        if not weatherFilePath:
             weatherFilePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets", "EnergyModel", "GBR_London.Gatwick.037760_IWEC.epw")
+        if not designDayFilePath:
             designDayFilePath = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets", "EnergyModel", "GBR_London.Gatwick.037760_IWEC.ddy")
 
-        #translator = openstudio.osversion.VersionTranslator()
-        # DEBUGGING
-        #osmFile = openstudio.openstudioutilitiescore.toPath(osModelPath)
-        #osModel = translator.loadModel(osmFile)
-        #osModel = translator.loadModel(osModelPath)
-        osModel = load_openstudio_model(osModelPath, allow_newer=True)
-        # if osModel.isNull():
-        #     print("EnergyModel.ByTopology - Error: The openstudio model is null. Returning None.")
-        #     return None
-        # else:
-        #     osModel = osModel.get()
-        # DEBUGGING
-        #osEPWFile = openstudio.openstudioutilitiesfiletypes.EpwFile.load(openstudio.toPath(weatherFilePath))
-        osEPWFile = openstudio.openstudioutilitiesfiletypes.EpwFile.load(weatherFilePath)
-        if osEPWFile.is_initialized():
-            osEPWFile = osEPWFile.get()
+        if not os.path.exists(osModelPath):
+            raise FileNotFoundError(f"EnergyModel.ByTopology - OSM template not found: {osModelPath}")
+        if not os.path.exists(weatherFilePath):
+            raise FileNotFoundError(f"EnergyModel.ByTopology - Weather file not found: {weatherFilePath}")
+        if not os.path.exists(designDayFilePath):
+            raise FileNotFoundError(f"EnergyModel.ByTopology - Design day file not found: {designDayFilePath}")
+
+        if not Topology.IsInstance(building, "CellComplex") and not Topology.IsInstance(building, "Cell"):
+            warnings.warn("EnergyModel.ByTopology - Error: The input building is not a valid Cell or CellComplex. Returning None.")
+            return None
+
+        # Load OSM safely
+        osmFile = os_path(osModelPath, openstudio)
+        translator = openstudio.osversion.VersionTranslator()
+        model_opt = translator.loadModel(osmFile)
+        if (not model_opt) or (not model_opt.is_initialized()):
+            raise RuntimeError(f"EnergyModel.ByTopology - Could not load OSM template: {osModelPath}")
+        osModel = model_opt.get()
+
+        # Load EPW safely
+        epwFile = os_path(weatherFilePath, openstudio)
+        epw_opt = openstudio.openstudioutilitiesfiletypes.EpwFile.load(epwFile)
+        if epw_opt.is_initialized():
+            osEPWFile = epw_opt.get()
             openstudio.model.WeatherFile.setWeatherFile(osModel, osEPWFile)
-        # DEBUGGING
-        ddyModel = openstudio.openstudioenergyplus.loadAndTranslateIdf(openstudio.toPath(designDayFilePath))
-        #ddyModel = openstudio.openstudioenergyplus.loadAndTranslateIdf(designDayFilePath)
-        if ddyModel.is_initialized():
-            ddyModel = ddyModel.get()
+        else:
+            raise RuntimeError(f"EnergyModel.ByTopology - Could not load EPW weather file: {weatherFilePath}")
+
+        # Load DDY safely
+        ddyFile = os_path(designDayFilePath, openstudio)
+        ddy_opt = openstudio.openstudioenergyplus.loadAndTranslateIdf(ddyFile)
+        if ddy_opt.is_initialized():
+            ddyModel = ddy_opt.get()
             for ddy in ddyModel.getObjectsByType(openstudio.IddObjectType("OS:SizingPeriod:DesignDay")):
                 osModel.addObject(ddy.clone())
         else:
-            print("EnergyModel.ByTopology - Error: The ddy file is not initialized. Returning None.")
-            return None
+            raise RuntimeError(f"EnergyModel.ByTopology - Could not load DDY design day file: {designDayFilePath}")
+        
+        # Try to assign a default space type
+        space_type_names = EnergyModel.SpaceTypeNames(osModel)
+        if defaultSpaceType == None:
+            for space_type_name in space_type_names:
+                if "office" in space_type_name.lower() or "room" in space_type_name.lower():
+                    defaultSpaceType = space_type_name
+                    break
+        if not defaultSpaceType in space_type_names:
+            raise RuntimeError(f"EnergyModel.ByTopology - Default Space Type {defaultSpaceType} not found in OSM template.")
         osBuilding = osModel.getBuilding()
+        if osBuilding is None:
+            raise RuntimeError("EnergyModel.ByTopology - Could not retrieve Building object from OSM template.")
+
         if not floorLevels:
             floorLevels = getFloorLevels(building)
-        osBuilding.setStandardsNumberOfStories(len(floorLevels) - 1)
-        osBuilding.setNominalFloortoFloorHeight(max(floorLevels) / osBuilding.standardsNumberOfStories().get())
-        osBuilding.setDefaultConstructionSet(osModel.getDefaultConstructionSets()[0])
-        osBuilding.setDefaultScheduleSet(osModel.getDefaultScheduleSets()[0])
+        if not floorLevels or len(floorLevels) < 2:
+            raise RuntimeError("EnergyModel.ByTopology - Could not derive valid floor levels from the input topology.")
+
+        floorLevels = sorted(list(set(floorLevels)))
+        numberOfStories = len(floorLevels) - 1
+        if numberOfStories < 1:
+            raise RuntimeError("EnergyModel.ByTopology - The derived number of stories is less than 1.")
+
+        osBuilding.setStandardsNumberOfStories(numberOfStories)
+
+        floor_to_floor_height = (max(floorLevels) - min(floorLevels)) / numberOfStories if numberOfStories > 0 else 3.0
+        if floor_to_floor_height <= tolerance:
+            floor_to_floor_height = 3.0
+        osBuilding.setNominalFloortoFloorHeight(floor_to_floor_height)
+
+        defaultConstructionSets = list(osModel.getDefaultConstructionSets())
+        if len(defaultConstructionSets) < 1:
+            raise RuntimeError("EnergyModel.ByTopology - No DefaultConstructionSet found in OSM template.")
+        osBuilding.setDefaultConstructionSet(defaultConstructionSets[0])
+
+        defaultScheduleSets = list(osModel.getDefaultScheduleSets())
+        if len(defaultScheduleSets) < 1:
+            raise RuntimeError("EnergyModel.ByTopology - No DefaultScheduleSet found in OSM template.")
+        osBuilding.setDefaultScheduleSet(defaultScheduleSets[0])
+
         osBuilding.setName(buildingName)
-        osBuilding.setStandardsBuildingType(buildingType)
-        osBuilding.setSpaceType(osModel.getSpaceTypeByName(defaultSpaceType).get())
-        for storyNumber in range(osBuilding.standardsNumberOfStories().get()):
+        try:
+            osBuilding.setStandardsBuildingType(buildingType)
+        except Exception:
+            pass
+
+        defaultSpaceTypeOpt = osModel.getSpaceTypeByName(defaultSpaceType)
+        if not defaultSpaceTypeOpt.is_initialized():
+            availableSpaceTypes = []
+            for st in osModel.getSpaceTypes():
+                try:
+                    n = st.name()
+                    if n.is_initialized():
+                        availableSpaceTypes.append(n.get())
+                except Exception:
+                    pass
+            raise RuntimeError(
+                "EnergyModel.ByTopology - Could not find the requested SpaceType "
+                f"'{defaultSpaceType}' in the OSM template. Available SpaceTypes: {availableSpaceTypes}"
+            )
+        defaultSpaceTypeObj = defaultSpaceTypeOpt.get()
+        osBuilding.setSpaceType(defaultSpaceTypeObj)
+
+        for storyNumber in range(numberOfStories):
             osBuildingStory = openstudio.model.BuildingStory(osModel)
             osBuildingStory.setName("STORY_" + str(storyNumber))
             osBuildingStory.setNominalZCoordinate(floorLevels[storyNumber])
-            osBuildingStory.setNominalFloortoFloorHeight(osBuilding.nominalFloortoFloorHeight().get())
-        osBuilding.setNorthAxis(northAxis)
+            osBuildingStory.setNominalFloortoFloorHeight(floor_to_floor_height)
+
+        try:
+            osBuilding.setNorthAxis(northAxis)
+        except Exception:
+            pass
+
         heatingScheduleConstant = openstudio.model.ScheduleConstant(osModel)
         heatingScheduleConstant.setValue(heatingTemp)
         coolingScheduleConstant = openstudio.model.ScheduleConstant(osModel)
         coolingScheduleConstant.setValue(coolingTemp)
+
         osThermostat = openstudio.model.ThermostatSetpointDualSetpoint(osModel)
         osThermostat.setHeatingSetpointTemperatureSchedule(heatingScheduleConstant)
         osThermostat.setCoolingSetpointTemperatureSchedule(coolingScheduleConstant)
+
         osBuildingStorys = list(osModel.getBuildingStorys())
-        osBuildingStorys.sort(key=lambda x: x.nominalZCoordinate().get())
+        osBuildingStorys.sort(key=lambda x: safe_optional_get(x.nominalZCoordinate()) if safe_optional_get(x.nominalZCoordinate()) is not None else -1e12)
+
+        if len(osBuildingStorys) < 1:
+            raise RuntimeError("EnergyModel.ByTopology - No BuildingStory objects were created.")
+
+        interiorHorizontalConstruction = None
+        try:
+            dcs = defaultConstructionSets[0]
+            interior_surface_cons_opt = dcs.defaultInteriorSurfaceConstructions()
+            if interior_surface_cons_opt.is_initialized():
+                isc = interior_surface_cons_opt.get()
+                floor_con_opt = isc.floorConstruction()
+                roof_con_opt = isc.roofCeilingConstruction()
+                if floor_con_opt.is_initialized():
+                    interiorHorizontalConstruction = floor_con_opt.get()
+                elif roof_con_opt.is_initialized():
+                    interiorHorizontalConstruction = roof_con_opt.get()
+        except Exception:
+            interiorHorizontalConstruction = None
+
         osSpaces = []
         spaceNames = []
+
         if Topology.IsInstance(building, "CellComplex"):
             building_cells = Topology.SubTopologies(building, "Cell")
-        elif Topology.IsInstance(building, "Cell"):
+        else:
             building_cells = [building]
+
         for spaceNumber, buildingCell in enumerate(building_cells):
             osSpace = openstudio.model.Space(osModel)
             osSpaceZ = Vertex.Z(Topology.CenterOfMass(buildingCell), mantissa=mantissa)
-            osBuildingStory = osBuildingStorys[0]
-            for x in osBuildingStorys:
-                osBuildingStoryZ = x.nominalZCoordinate().get()
-                if osBuildingStoryZ + x.nominalFloortoFloorHeight().get() < osSpaceZ:
-                    continue
-                if osBuildingStoryZ < osSpaceZ:
-                    osBuildingStory = x
-                break
-            osSpace.setBuildingStory(osBuildingStory)
-            cellDictionary = Topology.Dictionary(buildingCell)
-            if not cellDictionary == None:
-                keys = Dictionary.Keys(cellDictionary)
-            else:
-                keys = []
-            if len(keys) > 0:
-                if spaceTypeKey:
-                    keyType = getKeyName(cellDictionary, spaceTypeKey)
-                else:
-                    keyType = getKeyName(cellDictionary, 'type')
-                if keyType:
-                    osSpaceTypeName = Dictionary.ValueAtKey(cellDictionary,keyType)
-                else:
-                    osSpaceTypeName = defaultSpaceType
-                if osSpaceTypeName:
-                    sp_ = osModel.getSpaceTypeByName(osSpaceTypeName)
-                    if sp_.is_initialized():
-                        osSpace.setSpaceType(sp_.get())
-                if spaceNameKey:
-                    keyName = getKeyName(cellDictionary, spaceNameKey)
 
-                else:
-                    keyName = getKeyName(cellDictionary, 'name')
-                osSpaceName = None
+            selectedStory = osBuildingStorys[0]
+            for story in osBuildingStorys:
+                storyZ = safe_optional_get(story.nominalZCoordinate())
+                storyH = safe_optional_get(story.nominalFloortoFloorHeight())
+                if storyZ is None:
+                    continue
+                if storyH is None:
+                    storyH = floor_to_floor_height
+                if storyZ + storyH < osSpaceZ:
+                    continue
+                if storyZ <= osSpaceZ:
+                    selectedStory = story
+                break
+
+            osSpace.setBuildingStory(selectedStory)
+
+            cellDictionary = Topology.Dictionary(buildingCell)
+            keys = Dictionary.Keys(cellDictionary) if cellDictionary is not None else []
+
+            osSpaceName = None
+            chosenSpaceTypeObj = defaultSpaceTypeObj
+
+            if len(keys) > 0:
+                keyType = getKeyName(cellDictionary, spaceTypeKey) if spaceTypeKey else getKeyName(cellDictionary, "type")
+                osSpaceTypeName = Dictionary.ValueAtKey(cellDictionary, keyType) if keyType else defaultSpaceType
+                if osSpaceTypeName:
+                    sp_opt = osModel.getSpaceTypeByName(osSpaceTypeName)
+                    if sp_opt.is_initialized():
+                        chosenSpaceTypeObj = sp_opt.get()
+
+                keyName = getKeyName(cellDictionary, spaceNameKey) if spaceNameKey else getKeyName(cellDictionary, "name")
                 if keyName:
-                    osSpaceName = createUniqueName(Dictionary.ValueAtKey(cellDictionary,keyName),spaceNames, 1)
-                if osSpaceName:
-                    osSpace.setName(osSpaceName)
-            else:
+                    raw_name = Dictionary.ValueAtKey(cellDictionary, keyName)
+                    osSpaceName = createUniqueName(raw_name, spaceNames, 1)
+
+            if not osSpaceName:
                 osSpaceName = "SPACE_" + "{:04d}".format(spaceNumber)
-                osSpace.setName(osSpaceName)
-                sp_ = osModel.getSpaceTypeByName(defaultSpaceType)
-                if sp_.is_initialized():
-                    osSpace.setSpaceType(sp_.get())
+
+            osSpace.setName(osSpaceName)
             spaceNames.append(osSpaceName)
+
+            if chosenSpaceTypeObj is not None:
+                osSpace.setSpaceType(chosenSpaceTypeObj)
+
             cellFaces = Topology.SubTopologies(buildingCell, "Face")
             if cellFaces:
                 for faceNumber, buildingFace in enumerate(cellFaces):
-                    osFacePoints = []
-                    for vertex in Topology.SubTopologies(Face.ExternalBoundary(buildingFace), "Vertex"):
-                        osFacePoints.append(openstudio.Point3d(Vertex.X(vertex, mantissa=mantissa), Vertex.Y(vertex, mantissa=mantissa), Vertex.Z(vertex, mantissa=mantissa)))
+                    boundary = Face.ExternalBoundary(buildingFace)
+                    if boundary is None:
+                        continue
+
+                    faceVertices = Topology.SubTopologies(boundary, "Vertex")
+                    if not faceVertices or len(faceVertices) < 3:
+                        continue
+
+                    osFacePoints = vertices_to_point3d_list(faceVertices, openstudio)
                     osSurface = openstudio.model.Surface(osFacePoints, osModel)
+
                     faceNormal = Face.Normal(buildingFace, mantissa=mantissa)
-                    osFaceNormal = openstudio.Vector3d(faceNormal[0], faceNormal[1], faceNormal[2])
-                    osFaceNormal.normalize()
-                    if osFaceNormal.dot(osSurface.outwardNormal()) < 1e-6:
-                        osSurface.setVertices(list(reversed(osFacePoints)))
+                    orient_surface_vertices(osFacePoints, faceNormal, osSurface, openstudio)
                     osSurface.setSpace(osSpace)
+
                     faceCells = Topology.AdjacentTopologies(buildingFace, building, topologyType="cell")
-                    if len(faceCells) == 1: #Exterior Surfaces
+                    tilt = surface_tilt_degrees(osSurface, openstudio)
+                    space_name = safe_name(osSpace, f"SPACE_{spaceNumber:04d}")
+
+                    if len(faceCells) == 1:  # Exterior surfaces
                         osSurface.setOutsideBoundaryCondition("Outdoors")
-                        if (math.degrees(math.acos(osSurface.outwardNormal().dot(openstudio.Vector3d(0, 0, 1)))) > 135) or (math.degrees(math.acos(osSurface.outwardNormal().dot(openstudio.Vector3d(0, 0, 1)))) < 45):
+                        if tilt > 135 or tilt < 45:
                             osSurface.setSurfaceType("RoofCeiling")
                             osSurface.setOutsideBoundaryCondition("Outdoors")
-                            osSurface.setName(osSpace.name().get() + "_TopHorizontalSlab_" + str(faceNumber))
-                            if max(list(map(lambda vertex: Vertex.Z(vertex), Topology.SubTopologies(buildingFace, "Vertex")))) < 1e-6:
-                                osSurface.setSurfaceType("Floor")
-                                osSurface.setOutsideBoundaryCondition("Ground")
-                                osSurface.setName(osSpace.name().get() + "_BottomHorizontalSlab_" + str(faceNumber))
+                            osSurface.setName(space_name + "_TopHorizontalSlab_" + str(faceNumber))
+
+                            try:
+                                face_zs = [Vertex.Z(v) for v in Topology.SubTopologies(buildingFace, "Vertex")]
+                                if len(face_zs) > 0 and max(face_zs) < 1e-6:
+                                    osSurface.setSurfaceType("Floor")
+                                    osSurface.setOutsideBoundaryCondition("Ground")
+                                    osSurface.setName(space_name + "_BottomHorizontalSlab_" + str(faceNumber))
+                            except Exception:
+                                pass
                         else:
                             osSurface.setSurfaceType("Wall")
                             osSurface.setOutsideBoundaryCondition("Outdoors")
-                            osSurface.setName(osSpace.name().get() + "_ExternalVerticalFace_" + str(faceNumber))
-                            # Check for exterior apertures
-                            faceDictionary = buildingFace.GetDictionary()
-                            #apertures = []
+                            osSurface.setName(space_name + "_ExternalVerticalFace_" + str(faceNumber))
+
+                            faceDictionary = Topology.Dictionary(buildingFace)
                             apertures = Topology.Apertures(buildingFace)
-                            if len(apertures) > 0:
+                            if apertures and len(apertures) > 0:
                                 for apertureFace in apertures:
-                                    osSubSurfacePoints = []
-                                    for vertex in Topology.SubTopologies(Face.ExternalBoundary(apertureFace), "Vertex"):
-                                        osSubSurfacePoints.append(openstudio.Point3d(Vertex.X(vertex, mantissa=mantissa), Vertex.Y(vertex, mantissa=mantissa), Vertex.Z(vertex, mantissa=mantissa)))
+                                    ap_boundary = Face.ExternalBoundary(apertureFace)
+                                    if ap_boundary is None:
+                                        continue
+                                    ap_vertices = Topology.SubTopologies(ap_boundary, "Vertex")
+                                    if not ap_vertices or len(ap_vertices) < 3:
+                                        continue
+
+                                    osSubSurfacePoints = vertices_to_point3d_list(ap_vertices, openstudio)
                                     osSubSurface = openstudio.model.SubSurface(osSubSurfacePoints, osModel)
+
                                     apertureFaceNormal = Face.Normal(apertureFace, mantissa=mantissa)
-                                    osSubSurfaceNormal = openstudio.Vector3d(apertureFaceNormal[0], apertureFaceNormal[1], apertureFaceNormal[2])
-                                    osSubSurfaceNormal.normalize()
-                                    if osSubSurfaceNormal.dot(osSubSurface.outwardNormal()) < 1e-6:
-                                        osSubSurface.setVertices(list(reversed(osSubSurfacePoints)))
+                                    orient_surface_vertices(osSubSurfacePoints, apertureFaceNormal, osSubSurface, openstudio)
+
                                     osSubSurface.setSubSurfaceType("FixedWindow")
                                     osSubSurface.setSurface(osSurface)
                             else:
-                                    # Get the dictionary keys
-                                    keys = faceDictionary.Keys()
-                                    if ('TOPOLOGIC_glazing_ratio' in keys):
-                                        faceGlazingRatio = Dictionary.ValueAtKey(faceDictionary,'TOPOLOGIC_glazing_ratio')
-                                        if faceGlazingRatio and faceGlazingRatio >= 0.01:
-                                            osSurface.setWindowToWallRatio(faceGlazingRatio)
-                                    else:
-                                        if glazingRatio > 0.01: #Glazing ratio must be more than 1% to make any sense.
-                                            osSurface.setWindowToWallRatio(glazingRatio)
-                    else: #Interior Surfaces
-                        if (math.degrees(math.acos(osSurface.outwardNormal().dot(openstudio.Vector3d(0, 0, 1)))) > 135):
+                                faceGlazingRatio = None
+                                if faceDictionary is not None:
+                                    try:
+                                        keys = faceDictionary.Keys()
+                                        if 'TOPOLOGIC_glazing_ratio' in keys:
+                                            faceGlazingRatio = Dictionary.ValueAtKey(faceDictionary, 'TOPOLOGIC_glazing_ratio')
+                                    except Exception:
+                                        faceGlazingRatio = None
+                                if faceGlazingRatio is not None and faceGlazingRatio >= 0.01:
+                                    try:
+                                        osSurface.setWindowToWallRatio(faceGlazingRatio)
+                                    except Exception:
+                                        pass
+                                elif glazingRatio > 0.01:
+                                    try:
+                                        osSurface.setWindowToWallRatio(glazingRatio)
+                                    except Exception:
+                                        pass
+
+                    else:  # Interior surfaces
+                        if tilt > 135:
                             osSurface.setSurfaceType("Floor")
-                            osSurface.setName(osSpace.name().get() + "_InternalHorizontalFace_" + str(faceNumber))
-                        elif (math.degrees(math.acos(osSurface.outwardNormal().dot(openstudio.Vector3d(0, 0, 1)))) < 40):
+                            osSurface.setName(space_name + "_InternalHorizontalFace_" + str(faceNumber))
+                            if interiorHorizontalConstruction is not None:
+                                try:
+                                    osSurface.setConstruction(interiorHorizontalConstruction)
+                                except Exception:
+                                    pass
+                        elif tilt < 40:
                             osSurface.setSurfaceType("RoofCeiling")
-                            osSurface.setName(osSpace.name().get() + "_InternalHorizontalFace_" + str(faceNumber))
+                            osSurface.setName(space_name + "_InternalHorizontalFace_" + str(faceNumber))
+                            if interiorHorizontalConstruction is not None:
+                                try:
+                                    osSurface.setConstruction(interiorHorizontalConstruction)
+                                except Exception:
+                                    pass
                         else:
                             osSurface.setSurfaceType("Wall")
-                            osSurface.setName(osSpace.name().get() + "_InternalVerticalFace_" + str(faceNumber))
-                        # Check for interior apertures
-                        faceDictionary = buildingFace.GetDictionary()
-                        #apertures = []
+                            osSurface.setName(space_name + "_InternalVerticalFace_" + str(faceNumber))
+
                         apertures = Topology.Apertures(buildingFace)
-                        if len(apertures) > 0:
+                        if apertures and len(apertures) > 0:
                             for apertureFace in apertures:
-                                osSubSurfacePoints = []
-                                for vertex in Topology.SubTopologies(Face.ExternalBoundary(apertureFace), "Vertex"):
-                                    osSubSurfacePoints.append(openstudio.Point3d(Vertex.X(vertex, mantissa=mantissa), Vertex.Y(vertex, mantissa=mantissa), Vertex.Z(vertex, mantissa=mantissa)))
+                                ap_boundary = Face.ExternalBoundary(apertureFace)
+                                if ap_boundary is None:
+                                    continue
+                                ap_vertices = Topology.SubTopologies(ap_boundary, "Vertex")
+                                if not ap_vertices or len(ap_vertices) < 3:
+                                    continue
+
+                                osSubSurfacePoints = vertices_to_point3d_list(ap_vertices, openstudio)
                                 osSubSurface = openstudio.model.SubSurface(osSubSurfacePoints, osModel)
+
                                 apertureFaceNormal = Face.Normal(apertureFace, mantissa=mantissa)
-                                osSubSurfaceNormal = openstudio.Vector3d(apertureFaceNormal[0], apertureFaceNormal[1], apertureFaceNormal[2])
-                                osSubSurfaceNormal.normalize()
-                                if osSubSurfaceNormal.dot(osSubSurface.outwardNormal()) < 1e-6:
-                                    osSubSurface.setVertices(list(reversed(osSubSurfacePoints)))
-                                osSubSurface.setSubSurfaceType("Door") #We are assuming all interior apertures to be doors
+                                orient_surface_vertices(osSubSurfacePoints, apertureFaceNormal, osSubSurface, openstudio)
+
+                                osSubSurface.setSubSurfaceType("Door")
                                 osSubSurface.setSurface(osSurface)
 
             osThermalZone = openstudio.model.ThermalZone(osModel)
-            osThermalZone.setVolume(Cell.Volume(buildingCell, mantissa=mantissa))
-            osThermalZone.setName(osSpace.name().get() + "_THERMAL_ZONE")
+            cellVolume = Cell.Volume(buildingCell, mantissa=mantissa)
+            if cellVolume is not None:
+                try:
+                    osThermalZone.setVolume(cellVolume)
+                except Exception:
+                    pass
+            osThermalZone.setName(osSpaceName + "_THERMAL_ZONE")
             osThermalZone.setUseIdealAirLoads(True)
-            osThermalZone.setVolume(Cell.Volume(buildingCell, mantissa=mantissa))
+            if cellVolume is not None:
+                try:
+                    osThermalZone.setVolume(cellVolume)
+                except Exception:
+                    pass
             osThermalZone.setThermostatSetpointDualSetpoint(osThermostat)
             osSpace.setThermalZone(osThermalZone)
 
             for x in osSpaces:
-                if osSpace.boundingBox().intersects(x.boundingBox()):
-                    osSpace.matchSurfaces(x)
+                try:
+                    if osSpace.boundingBox().intersects(x.boundingBox()):
+                        osSpace.matchSurfaces(x)
+                except Exception:
+                    pass
             osSpaces.append(osSpace)
 
-        
         if shadingSurfaces:
             osShadingGroup = openstudio.model.ShadingSurfaceGroup(osModel)
             for faceIndex, shadingFace in enumerate(Topology.SubTopologies(shadingSurfaces, "Face")):
-                facePoints = []
-                for aVertex in Topology.SubTopologies(Face.ExternalBoundary(shadingFace), "Vertex"):
-                    facePoints.append(openstudio.Point3d(Vertex.X(aVertex, mantissa=mantissa), Vertex.Y(aVertex, mantissa=mantissa), Vertex.Z(aVertex, mantissa=mantissa)))
+                boundary = Face.ExternalBoundary(shadingFace)
+                if boundary is None:
+                    continue
+                shadingVertices = Topology.SubTopologies(boundary, "Vertex")
+                if not shadingVertices or len(shadingVertices) < 3:
+                    continue
+
+                facePoints = vertices_to_point3d_list(shadingVertices, openstudio)
                 aShadingSurface = openstudio.model.ShadingSurface(facePoints, osModel)
+
                 faceNormal = Face.Normal(shadingFace, mantissa=mantissa)
-                osFaceNormal = openstudio.Vector3d(faceNormal[0], faceNormal[1], faceNormal[2])
-                osFaceNormal.normalize()
-                if osFaceNormal.dot(aShadingSurface.outwardNormal()) < 0:
-                    aShadingSurface.setVertices(list(reversed(facePoints)))
+                try:
+                    osFaceNormal = openstudio.Vector3d(faceNormal[0], faceNormal[1], faceNormal[2])
+                    osFaceNormal.normalize()
+                    if osFaceNormal.dot(aShadingSurface.outwardNormal()) < 0:
+                        aShadingSurface.setVertices(list(reversed(facePoints)))
+                except Exception:
+                    pass
+
                 aShadingSurface.setName("SHADINGSURFACE_" + str(faceIndex))
                 aShadingSurface.setShadingSurfaceGroup(osShadingGroup)
 
         osModel.purgeUnusedResourceObjects()
         return osModel
-    
+
+
     @staticmethod
     def ColumnNames(model, reportName, tableName):
         """

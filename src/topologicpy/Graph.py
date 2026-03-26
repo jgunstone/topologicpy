@@ -1424,6 +1424,420 @@ class Graph:
         _ = graph.AllPaths(vertexA, vertexB, True, timeLimit, paths) # Hook to Core
         return paths
 
+
+    @staticmethod
+    def AngularBetweenness(graph,
+                        normalize: bool = False,
+                        nxCompatible: bool = True,
+                        key: str = "angular_betweenness",
+                        colorKey: str = "angular_betweenness_color",
+                        colorScale: str = "viridis",
+                        mantissa: int = 6,
+                        tolerance: float = 0.001,
+                        silent: bool = False):
+        """
+        Computes the angular betweenness of the input graph and stores the result in the dictionary of each edge.
+
+        Parameters
+        ----------
+        graph : topologic_core.Graph
+            The input graph.
+        normalize : bool , optional
+            If set to True, the values are normalized between 0 and 1. Default is False.
+        nxCompatible : bool , optional
+            If set to True, NetworkX-style normalization is applied and the normalize input is ignored. Default is True.
+        key : str , optional
+            The desired dictionary key name under which to store the calculated value. Default is "angular_betweenness".
+        colorKey : str , optional
+            The desired dictionary key name under which to store the calculated color. Default is "ab_color".
+        colorScale : str , optional
+            The desired color scale name to use for colors. Default is "viridis".
+        mantissa : int , optional
+            The desired length of the mantissa. Default is 6.
+        tolerance : float , optional
+            The desired tolerance. Default is 0.001.
+        silent : bool , optional
+            If set to True, error and warning messages are suppressed. Default is False.
+
+        Returns
+        -------
+        list
+            The list of angular betweenness values in the order matching the edges of the input graph.
+
+        """
+        return Graph.AngularChoice(
+            graph=graph,
+            normalize=normalize,
+            nxCompatible=nxCompatible,
+            key=key,
+            colorKey=colorKey,
+            colorScale=colorScale,
+            mantissa=mantissa,
+            tolerance=tolerance,
+            silent=silent
+        )
+
+
+    @staticmethod
+    def AngularChoice(graph,
+                    normalize: bool = False,
+                    nxCompatible: bool = True,
+                    key: str = "angular_choice",
+                    colorKey: str = "angular_choice_color",
+                    colorScale: str = "viridis",
+                    mantissa: int = 6,
+                    tolerance: float = 0.001,
+                    silent: bool = False):
+        """
+        Computes the angular choice of the input graph and stores the result in the dictionary of each edge. See: https://www.spacesyntax.online/term/angular-choice/
+
+        Parameters
+        ----------
+        graph : topologic_core.Graph
+            The input graph.
+        normalize : bool , optional
+            If set to True, the values are normalized between 0 and 1. Default is False.
+        nxCompatible : bool , optional
+            If set to True, NetworkX-style normalization is applied and the normalize input is ignored. Default is True.
+        key : str , optional
+            The desired dictionary key name under which to store the calculated value. Default is "angular_choice".
+        colorKey : str , optional
+            The desired dictionary key name under which to store the calculated color. Default is "angular_choice_color".
+        colorScale : str , optional
+            The desired color scale name to use for colors. Default is "viridis".
+        mantissa : int , optional
+            The desired length of the mantissa. Default is 6.
+        tolerance : float , optional
+            The desired tolerance. Default is 0.001.
+        silent : bool , optional
+            If set to True, error and warning messages are suppressed. Default is False.
+
+        Returns
+        -------
+        list
+            The list of angular choice values in the order matching the edges of the input graph.
+
+        """
+        return Graph.BetweennessCentrality(
+            graph=graph,
+            weightKey=None,
+            normalize=normalize,
+            nxCompatible=nxCompatible,
+            useEdges=True,
+            edgeKey=None,
+            angular=True,
+            angularWeightKey="angular_weight",
+            key=key,
+            colorKey=colorKey,
+            colorScale=colorScale,
+            mantissa=mantissa,
+            tolerance=tolerance,
+            silent=silent
+        )
+
+    @staticmethod
+    def AngularConnectivity(graph,
+                            key: str = "angular_connectivity",
+                            normalize: bool = False,
+                            colorKey: str = "angular_connectivity_color",
+                            colorScale: str = "viridis",
+                            minValue: float = None,
+                            maxValue: float = None,
+                            mantissa: int = 6,
+                            tolerance: float = 0.0001,
+                            silent: bool = False):
+        """
+        Computes the angular connectivity of the input graph and stores the result in the dictionary of each edge.
+
+        Parameters
+        ----------
+        graph : topologic_core.Graph
+            The input graph.
+        key : str , optional
+            The dictionary key under which to store the computed angular connectivity value. Default is "angular_connectivity".
+        normalize : bool , optional
+            If set to True, the computed value is normalized by the number of contributing adjacent edges. Otherwise, the raw sum is stored. Default is False.
+        colorKey : str , optional
+            The dictionary key under which to store the computed color. Default is "angular_connectivity_color".
+        colorScale : str , optional
+            The color scale used to map values to colors. Default is "viridis".
+        minValue : float or None , optional
+            The minimum value used for color mapping. If set to None, the minimum value is computed from the data. Default is None.
+        maxValue : float or None , optional
+            The maximum value used for color mapping. If set to None, the maximum value is computed from the data. Default is None.
+        mantissa : int , optional
+            The number of decimal places to round the result to. Default is 6.
+        tolerance : float , optional
+            The desired tolerance. Default is 0.0001.
+        silent : bool , optional
+            If set to True, error and warning messages are suppressed. Default is False.
+
+        Returns
+        -------
+        topologic_core.Graph
+            The input graph with updated edge dictionaries.
+        """
+
+        from topologicpy.Topology import Topology
+        from topologicpy.Graph import Graph
+        from topologicpy.Edge import Edge
+        from topologicpy.Vertex import Vertex
+        from topologicpy.Dictionary import Dictionary
+        from topologicpy.Color import Color
+
+        if not Topology.IsInstance(graph, "Graph"):
+            if not silent:
+                print("Graph.AngularConnectivity - Error: The input graph is not a valid topologicpy graph. Returning None.")
+            return None
+
+        edges = Graph.Edges(graph)
+        if len(edges) == 0:
+            if not silent:
+                print("Graph.AngularConnectivity - Warning: The input graph does not contain any edges. Returning an empty list.")
+            return []
+
+        # --- Helpers ---
+        def vertex_key(v):
+            x, y, z = Vertex.Coordinates(v)
+            return (
+                int(round(x / tolerance)),
+                int(round(y / tolerance)),
+                int(round(z / tolerance))
+            )
+
+        def oriented_edge(edge, vertex):
+            sv = Edge.StartVertex(edge)
+            ev = Edge.EndVertex(edge)
+
+            if Topology.IsSame(vertex, sv):
+                return edge
+            elif Topology.IsSame(vertex, ev):
+                return Edge.Reverse(edge)
+            return None
+
+        # --- Build adjacency ---
+        v_to_edges = {}
+        for i, e in enumerate(edges):
+            sv = Edge.StartVertex(e)
+            ev = Edge.EndVertex(e)
+
+            k1 = vertex_key(sv)
+            k2 = vertex_key(ev)
+
+            v_to_edges.setdefault(k1, []).append(i)
+            v_to_edges.setdefault(k2, []).append(i)
+
+        useSinglePass = not (minValue is None or maxValue is None)
+
+        values = []
+
+        # --- SINGLE PASS ---
+        if useSinglePass:
+            min_v = minValue
+            max_v = maxValue
+
+            if abs(max_v - min_v) < tolerance:
+                max_v = min_v + tolerance
+
+            for i, edge in enumerate(edges):
+                sv = Edge.StartVertex(edge)
+                ev = Edge.EndVertex(edge)
+
+                total = 0.0
+                count = 0
+
+                # Start vertex
+                k = vertex_key(sv)
+                eA = oriented_edge(edge, sv)
+
+                if eA:
+                    for j in v_to_edges.get(k, []):
+                        if j == i:
+                            continue
+                        nbr = edges[j]
+                        eB = oriented_edge(nbr, sv)
+                        if not eB:
+                            continue
+
+                        ang = Edge.Angle(eA, eB, mantissa=mantissa, bracket=False)
+                        if ang is None:
+                            continue
+
+                        total += ang / 90.0
+                        count += 1
+
+                # End vertex
+                k = vertex_key(ev)
+                eA = oriented_edge(edge, ev)
+
+                if eA:
+                    for j in v_to_edges.get(k, []):
+                        if j == i:
+                            continue
+                        nbr = edges[j]
+                        eB = oriented_edge(nbr, ev)
+                        if not eB:
+                            continue
+
+                        ang = Edge.Angle(eA, eB, mantissa=mantissa, bracket=False)
+                        if ang is None:
+                            continue
+
+                        total += ang / 90.0
+                        count += 1
+
+                value = total
+                if normalize and count > 0:
+                    value = total / count
+
+                value = round(value, mantissa)
+
+                d = Topology.Dictionary(edge)
+                d = Dictionary.SetValueAtKey(d, key, value)
+
+                color = Color.ByValueInRange(value, minValue=min_v, maxValue=max_v, colorScale=colorScale)
+                color_hex = Color.AnyToHex(color)
+                d = Dictionary.SetValueAtKey(d, colorKey, color_hex)
+
+                _ = Topology.SetDictionary(edge, d)
+                values.append(value)
+
+        # --- TWO PASS ---
+        else:
+            values = []
+
+            for i, edge in enumerate(edges):
+                sv = Edge.StartVertex(edge)
+                ev = Edge.EndVertex(edge)
+
+                total = 0.0
+                count = 0
+
+                k = vertex_key(sv)
+                eA = oriented_edge(edge, sv)
+
+                if eA:
+                    for j in v_to_edges.get(k, []):
+                        if j == i:
+                            continue
+                        nbr = edges[j]
+                        eB = oriented_edge(nbr, sv)
+                        if not eB:
+                            continue
+
+                        ang = Edge.Angle(eA, eB, mantissa=mantissa, bracket=False)
+                        if ang is None:
+                            continue
+
+                        total += ang / 90.0
+                        count += 1
+
+                k = vertex_key(ev)
+                eA = oriented_edge(edge, ev)
+
+                if eA:
+                    for j in v_to_edges.get(k, []):
+                        if j == i:
+                            continue
+                        nbr = edges[j]
+                        eB = oriented_edge(nbr, ev)
+                        if not eB:
+                            continue
+
+                        ang = Edge.Angle(eA, eB, mantissa=mantissa, bracket=False)
+                        if ang is None:
+                            continue
+
+                        total += ang / 90.0
+                        count += 1
+
+                value = total
+                if normalize and count > 0:
+                    value = total / count
+
+                value = round(value, mantissa)
+                values.append(value)
+
+            if not values:
+                if not silent:
+                    print("Graph.AngularConnectivity - Error: Could not compute angular connectivity values. Returning None.")
+                return None
+
+            min_v = min(values)
+            max_v = max(values)
+
+            if abs(max_v - min_v) < tolerance:
+                max_v = min_v + tolerance
+
+            for edge, value in zip(edges, values):
+                d = Topology.Dictionary(edge)
+                d = Dictionary.SetValueAtKey(d, key, value)
+                color = Color.ByValueInRange(value, minValue=min_v, maxValue=max_v, colorScale=colorScale)
+                color_hex = Color.AnyToHex(color)
+                d = Dictionary.SetValueAtKey(d, colorKey, color_hex)
+                _ = Topology.SetDictionary(edge, d)
+
+        return values
+
+    @staticmethod
+    def AngularIntegration(
+        graph,
+        normalize: bool = False,
+        nxCompatible: bool = True,
+        key: str = "angular_integration",
+        colorKey: str = "angular_integration_color",
+        colorScale: str = "viridis",
+        mantissa: int = 6,
+        tolerance: float = 0.0001,
+        silent: bool = False
+    ):
+        """
+        Computes the angular integration of the input graph and stores the result in the dictionary of each edge. See: https://www.spacesyntax.online/term/angular-integration/
+
+        Parameters
+        ----------
+        graph : topologic_core.Graph
+            The input graph.
+        normalize : bool , optional
+            If set to True, the values are normalized between 0 and 1. Default is False.
+        nxCompatible : bool , optional
+            If set to True, the values are compatible with those derived from NetworkX. Default is True.
+        key : str , optional
+            The desired dictionary key name under which to store the calculated value. Default is "angular_integration".
+        colorKey : str , optional
+            The desired dictionary key name under which to store the calculated color. Default is "angular_integration_color".
+        colorScale : str , optional
+            The desired colorscale name to use for colors. The default is "viridis".
+        mantissa : int , optional
+            The desired length of the mantissa (number of digits after the decimal point). Default is 6.
+        tolerance : float , optional
+            The desired tolerance. Default is 0.0001.
+        silent : bool , optional
+            If set to True, error and warning messages are suppressed. Default is False.
+
+        Returns
+        -------
+        list
+            The list of angular integration values in the order matching the edges of the input graph.
+
+        """
+        return Graph.ClosenessCentrality(
+            graph=graph,
+            weightKey=None,
+            normalize=normalize,
+            nxCompatible=nxCompatible,
+            useEdges=True,
+            edgeKey=None,
+            angular=True,
+            angularWeightKey="angular_weight",
+            key=key,
+            colorKey=colorKey,
+            colorScale=colorScale,
+            mantissa=mantissa,
+            tolerance=tolerance,
+            silent=silent
+        )
+
     @staticmethod
     def AverageClusteringCoefficient(graph, mantissa: int = 6, silent: bool = False):
         """
@@ -1920,6 +2334,8 @@ class Graph:
                             nxCompatible: bool = True,
                             useEdges: bool = False,
                             edgeKey: str = None,
+                            angular: bool = False,
+                            angularWeightKey: str = "angular_weight",
                             key: str = "betweenness_centrality",
                             colorKey: str = "bc_color",
                             colorScale: str = "viridis",
@@ -1927,38 +2343,39 @@ class Graph:
                             tolerance: float = 0.001,
                             silent: bool = False):
         """
-        Computes betweenness centrality (Brandes) for vertices or edges.
+        Computes the betweenness centrality of the input graph and stores the result in the dictionary of each vertex or edge.
 
         Parameters
         ----------
         graph : topologic_core.Graph
             The input graph.
-        weightKey : str, optional
-            If set to None, each edge is assumed to have a weight of 1. If set to "length" or "distance", the geometric length of each edge
-            is used as its weight. If set to any other value, the value associated with that key in each edge's dictionary is used as the
-            edge weight. Default is None.
+        weightKey : str , optional
+            If set to None, each edge is assumed to have a weight of 1. If set to "length" or "distance", the geometric length of each edge is used as its weight.
+            If set to any other value, the value associated with that key in each edge's dictionary is used as the edge weight. Default is None.
         normalize : bool , optional
             If set to True, the values are normalized between 0 and 1. Default is False.
         nxCompatible : bool , optional
-             If set to True, NetworkX normalization is applied and `normalize` is ignored.
-        (Undirected conventions; endpoints=False.)
+            If set to True, NetworkX-style normalization is applied and the normalize input is ignored. Default is True.
         useEdges : bool , optional
-            If set to True,  If useEdges=True and edgeKey is provided, edge betweenness values are bundled by
-            SUM and assigned back to each member edge. Default is False.
+            If set to True, the calculation uses the edges rather than the vertices. Default is False.
         edgeKey : str , optional
-            If not None, the value associated with that key in each edge's dictionary is used to bundle the edges
-            into one entity for the calculation. Otherwise, each edge segment is assumed to be an independent
-            entity. Default is None.
+            If not None, the value associated with that key in each edge's dictionary is used to bundle the edges into one entity for the calculation.
+            Otherwise, each edge segment is assumed to be an independent entity. Default is None.
+        angular : bool , optional
+            If set to True, the calculation uses angular weights between adjacent edge segments. This option is valid only when useEdges is set to True.
+            Default is False.
+        angularWeightKey : str , optional
+            The dictionary key under which to store the computed angular weight on the line graph edges. Default is "angular_weight".
         key : str , optional
-            The desired dictionary key name under which to store the calculated value. Default is "degree_centrality".
+            The desired dictionary key name under which to store the calculated value. Default is "betweenness_centrality".
         colorKey : str , optional
-            The desired dictionary key name under which to store the calculated color. Default is "dc_color"
+            The desired dictionary key name under which to store the calculated color. Default is "bc_color".
         colorScale : str , optional
-            The desired colorscale name to use for colors. The default is "viridis".
-        mantissa: int , optional
-            The desired length of the mantissa (number of digits after the decimal point). Default is 6.
+            The desired color scale name to use for colors. Default is "viridis".
+        mantissa : int , optional
+            The desired length of the mantissa. Default is 6.
         tolerance : float , optional
-            The desired tolerance. Default is 0.0001.
+            The desired tolerance. Default is 0.001.
         silent : bool , optional
             If set to True, error and warning messages are suppressed. Default is False.
 
@@ -1968,9 +2385,6 @@ class Graph:
             The list of centralities in the order matching the vertices or edges as requested.
 
         """
-
-
-        
         from topologicpy.Topology import Topology
         from topologicpy.Dictionary import Dictionary
         from topologicpy.Color import Color
@@ -1983,6 +2397,16 @@ class Graph:
         if not Topology.IsInstance(graph, "Graph"):
             if not silent:
                 print("Graph.BetweennessCentrality - Error: The input graph is not a valid graph. Returning None.")
+            return None
+
+        if angular and not useEdges:
+            if not silent:
+                print("Graph.BetweennessCentrality - Error: The angular option is valid only when useEdges is set to True. Returning None.")
+            return None
+
+        if angular and edgeKey is not None:
+            if not silent:
+                print("Graph.BetweennessCentrality - Error: The angular option is not compatible with edge bundling through edgeKey. Returning None.")
             return None
 
         # -----------------------------
@@ -2062,6 +2486,125 @@ class Graph:
                     continue
             return out
 
+        def _shared_vertex(edgeA, edgeB):
+            sva = Edge.StartVertex(edgeA)
+            eva = Edge.EndVertex(edgeA)
+            svb = Edge.StartVertex(edgeB)
+            evb = Edge.EndVertex(edgeB)
+            if Topology.IsSame(sva, svb) or Topology.IsSame(sva, evb):
+                return sva
+            if Topology.IsSame(eva, svb) or Topology.IsSame(eva, evb):
+                return eva
+            return None
+
+        def _oriented_edge(edge, vertex):
+            sv = Edge.StartVertex(edge)
+            ev = Edge.EndVertex(edge)
+            if Topology.IsSame(vertex, sv):
+                return edge
+            if Topology.IsSame(vertex, ev):
+                return Edge.Reverse(edge)
+            return None
+
+        def _build_angular_line_graph(input_graph, angularWeightKey="angular_weight"):
+            original_edges = Graph.Edges(input_graph)
+            for i, e in enumerate(original_edges):
+                d = Topology.Dictionary(e)
+                d = Dictionary.SetValueAtKey(d, "u_edge_id", i)
+                _ = Topology.SetDictionary(e, d)
+
+            l_graph = Graph.LineGraph(input_graph, transferEdgeDictionaries=True)
+            l_edges = Graph.Edges(l_graph)
+
+            id_to_edge = {}
+            for e in original_edges:
+                d = Topology.Dictionary(e)
+                eid = Dictionary.ValueAtKey(d, "u_edge_id")
+                if eid is not None:
+                    id_to_edge[eid] = e
+
+            for le in l_edges:
+                sv = Edge.StartVertex(le)
+                ev = Edge.EndVertex(le)
+                dsv = Topology.Dictionary(sv)
+                dev = Topology.Dictionary(ev)
+                idA = Dictionary.ValueAtKey(dsv, "u_edge_id")
+                idB = Dictionary.ValueAtKey(dev, "u_edge_id")
+                eA = id_to_edge.get(idA, None)
+                eB = id_to_edge.get(idB, None)
+                if eA is None or eB is None:
+                    continue
+
+                jv = _shared_vertex(eA, eB)
+                if jv is None:
+                    continue
+
+                oeA = _oriented_edge(eA, jv)
+                oeB = _oriented_edge(eB, jv)
+                if oeA is None or oeB is None:
+                    continue
+
+                ang = Edge.Angle(oeA, oeB, mantissa=mantissa, bracket=False)
+                if ang is None:
+                    continue
+
+                w = round(float(ang) / 90.0, mantissa)
+                d = Topology.Dictionary(le)
+                d = Dictionary.SetValueAtKey(d, angularWeightKey, w)
+                _ = Topology.SetDictionary(le, d)
+            return l_graph
+
+        # -----------------------------
+        # Angular edge mode
+        # -----------------------------
+        if useEdges and angular:
+            edges = Graph.Edges(graph)
+            if not edges:
+                return []
+
+            edge_dicts = []
+            for i, e in enumerate(edges):
+                d = Topology.Dictionary(e)
+                d = Dictionary.SetValueAtKey(d, "u_edge_id", i)
+                edge_dicts.append(d)
+                _ = Topology.SetDictionary(e, d)
+
+            l_graph = _build_angular_line_graph(graph, angularWeightKey=angularWeightKey)
+            _ = Graph.BetweennessCentrality(
+                l_graph,
+                weightKey=angularWeightKey,
+                normalize=normalize,
+                nxCompatible=nxCompatible,
+                useEdges=False,
+                edgeKey=None,
+                angular=False,
+                angularWeightKey=angularWeightKey,
+                key=key,
+                colorKey=colorKey,
+                colorScale=colorScale,
+                mantissa=mantissa,
+                tolerance=tolerance,
+                silent=silent
+            )
+
+            l_verts = Graph.Vertices(l_graph)
+            vert_dicts = [Topology.Dictionary(v) for v in l_verts]
+            final_dicts = Dictionary.BooleanDictionariesByKey(
+                edge_dicts,
+                vert_dicts,
+                key="u_edge_id",
+                exclusive=True,
+                operation="impose"
+            )
+
+            out_vals = []
+            for i, d in enumerate(final_dicts):
+                d = Dictionary.RemoveKey(d, "u_edge_id")
+                value = Dictionary.ValueAtKey(d, key)
+                out_vals.append(value)
+                _ = Topology.SetDictionary(edges[i], d)
+            return out_vals
+
         # Weight handling (NetworkX-style: weight is distance/cost)
         if weightKey is None:
             wk_mode = "unit"
@@ -2081,11 +2624,12 @@ class Graph:
             d = Topology.Dictionary(e)
             return _as_float(Dictionary.ValueAtKey(d, wk_key), default=1.0)
 
-        # Coordinate-keyed vertex mapping (robust to object identity)
         tol = tolerance if (tolerance and tolerance > 0) else 1e-9
 
         def vkey(v):
-            x = Vertex.X(v); y = Vertex.Y(v); z = Vertex.Z(v)
+            x = Vertex.X(v)
+            y = Vertex.Y(v)
+            z = Vertex.Z(v)
             return (round(x / tol), round(y / tol), round(z / tol))
 
         # -----------------------------
@@ -2110,7 +2654,7 @@ class Graph:
                 idx_to_key.append(k)
             return key_to_idx[k]
 
-        adj = defaultdict(list)  # node_idx -> list[(nbr_idx, weight, edge_index)]
+        adj = defaultdict(list)
         for ei, e in enumerate(edges):
             try:
                 sv = Edge.StartVertex(e)
@@ -2120,14 +2664,13 @@ class Graph:
             u = _get_idx_for_vertex(sv)
             v = _get_idx_for_vertex(ev)
             w = _edge_weight(e)
-            # undirected
             adj[u].append((v, w, ei))
             adj[v].append((u, w, ei))
 
         n_nodes = len(idx_to_key)
 
         # -----------------------------
-        # Brandes (undirected): returns RAW (unnormalized) and already /2 corrected
+        # Brandes (undirected)
         # -----------------------------
         def _brandes_unweighted():
             CBv = [0.0] * n_nodes
@@ -2135,8 +2678,8 @@ class Graph:
 
             for s in range(n_nodes):
                 S = []
-                P = [[] for _ in range(n_nodes)]         # P[w] = list of (v, ei) predecessors
-                sigma = [0.0] * n_nodes                  # number of shortest paths
+                P = [[] for _ in range(n_nodes)]
+                sigma = [0.0] * n_nodes
                 dist = [-1] * n_nodes
 
                 sigma[s] = 1.0
@@ -2165,19 +2708,19 @@ class Graph:
                     if w != s:
                         CBv[w] += delta[w]
 
-            # undirected correction
             return [x / 2.0 for x in CBv], [x / 2.0 for x in CBe]
 
         def _brandes_weighted():
             CBv = [0.0] * n_nodes
             CBe = [0.0] * len(edges)
-            eq_eps = 1e-12  # equality tolerance for shortest-path ties
+            eq_eps = 1e-12
 
             for s in range(n_nodes):
                 S = []
                 P = [[] for _ in range(n_nodes)]
                 sigma = [0.0] * n_nodes
                 dist = [float("inf")] * n_nodes
+                settled = [False] * n_nodes
 
                 sigma[s] = 1.0
                 dist[s] = 0.0
@@ -2185,9 +2728,13 @@ class Graph:
                 heap = [(0.0, s)]
                 while heap:
                     dv, v = heapq.heappop(heap)
+                    if settled[v]:
+                        continue
                     if dv > dist[v] + eq_eps:
                         continue
+                    settled[v] = True
                     S.append(v)
+
                     for (w, wt, ei) in adj.get(v, []):
                         vw_dist = dv + float(wt)
                         if vw_dist < dist[w] - eq_eps:
@@ -2198,6 +2745,8 @@ class Graph:
                         elif abs(vw_dist - dist[w]) <= eq_eps:
                             sigma[w] += sigma[v]
                             P[w].append((v, ei))
+                            if not settled[w]:
+                                heapq.heappush(heap, (dist[w], w))
 
                 delta = [0.0] * n_nodes
                 while S:
@@ -2220,7 +2769,6 @@ class Graph:
         # NetworkX normalization (undirected)
         # -----------------------------
         def _nx_scale_vertex(vals):
-            # nx: normalized=True => multiply by 2/((n-1)(n-2)) for undirected
             n = n_nodes
             if n <= 2:
                 return [0.0 for _ in vals]
@@ -2228,7 +2776,6 @@ class Graph:
             return [float(v) * scale for v in vals]
 
         def _nx_scale_edge(vals):
-            # nx edge betweenness normalized=True => multiply by 2/(n(n-1)) for undirected
             n = n_nodes
             if n <= 1:
                 return [0.0 for _ in vals]
@@ -2241,7 +2788,6 @@ class Graph:
         if useEdges:
             out_vals = [float(x) for x in CBe_edges]
 
-            # Bundling by SUM (if requested)
             if edgeKey:
                 group_sum = {}
                 group_id = []
@@ -2254,7 +2800,6 @@ class Graph:
                     group_sum[gid] = group_sum.get(gid, 0.0) + float(out_vals[ei])
                 out_vals = [float(group_sum[group_id[ei]]) for ei in range(len(edges))]
 
-            # Scaling / normalization precedence
             if nxCompatible:
                 out_vals = _nx_scale_edge(out_vals)
                 unit_range_for_color = True
@@ -2270,15 +2815,13 @@ class Graph:
             return out_vals
 
         # -----------------------------
-        # Vertex mode (map back to Graph.Vertices order)
+        # Vertex mode
         # -----------------------------
         graph_vertices = Graph.Vertices(graph)
         if not graph_vertices:
             return []
 
-        # values per quantized vertex key
         key_value = {k: float(CBv_nodes[idx]) for k, idx in key_to_idx.items()}
-
         out_vals = [float(key_value.get(vkey(v), 0.0)) for v in graph_vertices]
 
         if nxCompatible:
@@ -2295,297 +2838,679 @@ class Graph:
         _apply_value_and_color_to_vertices(graph_vertices, out_vals, unit_range=unit_range_for_color)
         return out_vals
 
-    @staticmethod
-    def BetweennessCentrality_older(
-        graph,
-        useEdges: bool = False,
-        weightKey: str = "length",
-        normalize: bool = False,
-        nxCompatible: bool = False,
-        key: str = "betweenness_centrality",
-        colorKey: str = "bc_color",
-        colorScale: str = "viridis",
-        mantissa: int = 6,
-        tolerance: float = 0.001,
-        silent: bool = False
-    ):
-        """
-        Returns the betweenness centrality of the input graph. The order of the returned list is the same as the order of vertices/edges. See https://en.wikipedia.org/wiki/Betweenness_centrality.
-        Optimized betweenness centrality (undirected) using Brandes:
-        - Unweighted: O(VE) BFS per source
-        - Weighted: Dijkstra-Brandes with binary heap
-        - Vertex or Edge mode
-        - Optional NetworkX-compatible normalization or 0..1 rescale
-        Parameters
-        ----------
-        graph : topologic_core.Graph
-            The input graph.
-        useEdges : bool , optional
-            If set to True, the calculation uses the edges rather than the vertices. Default is False.
-        weightKey : str , optional
-            If specified, the value in the connected edges' dictionary specified by the weightKey string will be aggregated to calculate
-            the shortest path. If a numeric value cannot be retrieved from an edge, a value of 1 is used instead.
-            This is used in weighted graphs. if weightKey is set to "Length" or "Distance", the length of the edge will be used as its weight.
-        normalize : bool , optional
-            If set to True, the values are normalized to be in the range 0 to 1. Otherwise they are not. Default is False.
-        nxCompatible : bool , optional
-            If set to True, and normalize input parameter is also set to True, the values are set to be identical to NetworkX values. Otherwise, they are normalized between 0 and 1. Default is False.
-        key : str , optional
-            The desired dictionary key under which to store the betweenness centrality score. Default is "betweenness_centrality".
-        colorKey : str , optional
-            The desired dictionary key under which to store the betweenness centrality color. Default is "betweenness_centrality".
-        colorScale : str , optional
-            The desired type of plotly color scales to use (e.g. "viridis", "plasma"). Default is "viridis". For a full list of names, see https://plotly.com/python/builtin-colorscales/.
-            In addition to these, three color-blind friendly scales are included. These are "protanopia", "deuteranopia", and "tritanopia" for red, green, and blue colorblindness respectively.
-        mantissa : int , optional
-            The number of decimal places to round the result to. Default is 6.
-        tolerance : float , optional
-            The desired tolerance. Default is 0.0001.
+    # @staticmethod
+    # def BetweennessCentrality(graph,
+    #                         weightKey: str = None,
+    #                         normalize: bool = False,
+    #                         nxCompatible: bool = True,
+    #                         useEdges: bool = False,
+    #                         edgeKey: str = None,
+    #                         key: str = "betweenness_centrality",
+    #                         colorKey: str = "bc_color",
+    #                         colorScale: str = "viridis",
+    #                         mantissa: int = 6,
+    #                         tolerance: float = 0.001,
+    #                         silent: bool = False):
+    #     """
+    #     Computes betweenness centrality (Brandes) for vertices or edges.
 
-        Returns
-        -------
-        list
-            The betweenness centrality of the input list of vertices within the input graph. The values are in the range 0 to 1.
-        """
-        from collections import deque
-        import math
+    #     Parameters
+    #     ----------
+    #     graph : topologic_core.Graph
+    #         The input graph.
+    #     weightKey : str, optional
+    #         If set to None, each edge is assumed to have a weight of 1. If set to "length" or "distance", the geometric length of each edge
+    #         is used as its weight. If set to any other value, the value associated with that key in each edge's dictionary is used as the
+    #         edge weight. Default is None.
+    #     normalize : bool , optional
+    #         If set to True, the values are normalized between 0 and 1. Default is False.
+    #     nxCompatible : bool , optional
+    #          If set to True, NetworkX normalization is applied and `normalize` is ignored.
+    #     (Undirected conventions; endpoints=False.)
+    #     useEdges : bool , optional
+    #         If set to True,  If useEdges=True and edgeKey is provided, edge betweenness values are bundled by
+    #         SUM and assigned back to each member edge. Default is False.
+    #     edgeKey : str , optional
+    #         If not None, the value associated with that key in each edge's dictionary is used to bundle the edges
+    #         into one entity for the calculation. Otherwise, each edge segment is assumed to be an independent
+    #         entity. Default is None.
+    #     key : str , optional
+    #         The desired dictionary key name under which to store the calculated value. Default is "degree_centrality".
+    #     colorKey : str , optional
+    #         The desired dictionary key name under which to store the calculated color. Default is "dc_color"
+    #     colorScale : str , optional
+    #         The desired colorscale name to use for colors. The default is "viridis".
+    #     mantissa: int , optional
+    #         The desired length of the mantissa (number of digits after the decimal point). Default is 6.
+    #     tolerance : float , optional
+    #         The desired tolerance. Default is 0.0001.
+    #     silent : bool , optional
+    #         If set to True, error and warning messages are suppressed. Default is False.
 
-        from topologicpy.Topology import Topology
-        from topologicpy.Dictionary import Dictionary
-        from topologicpy.Color import Color
-        from topologicpy.Helper import Helper
-        from topologicpy.Vertex import Vertex
-        from topologicpy.Edge import Edge
-        # We are inside Graph.* context; Graph.<...> methods available.
+    #     Returns
+    #     -------
+    #     list
+    #         The list of centralities in the order matching the vertices or edges as requested.
 
-        # ---------- validate ----------
-        if not Topology.IsInstance(graph, "graph"):
-            if not silent:
-                print("Graph.BetweennessCentrality - Error: The input is not a valid Graph. Returning None.")
-            return None
+    #     """
 
-        vertices = Graph.Vertices(graph)
-        n = len(vertices)
-        if n == 0:
-            if not silent:
-                print("Graph.BetweennessCentrality - Warning: Graph has no vertices. Returning [].")
-            return []
 
-        compute_edges = "edge" in method_l
+        
+    #     from topologicpy.Topology import Topology
+    #     from topologicpy.Dictionary import Dictionary
+    #     from topologicpy.Color import Color
+    #     from topologicpy.Edge import Edge
+    #     from topologicpy.Vertex import Vertex
+    #     import numbers
+    #     import heapq
+    #     from collections import deque, defaultdict
 
-        # ---------- stable vertex indexing ----------
-        def vkey(v, r=9):
-            d = Topology.Dictionary(v)
-            vid = Dictionary.ValueAtKey(d, "id")
-            if vid is not None:
-                return ("id", vid)
-            return ("xyz", round(Vertex.X(v), r), round(Vertex.Y(v), r), round(Vertex.Z(v), r))
+    #     if not Topology.IsInstance(graph, "Graph"):
+    #         if not silent:
+    #             print("Graph.BetweennessCentrality - Error: The input graph is not a valid graph. Returning None.")
+    #         return None
 
-        idx_of = {vkey(v): i for i, v in enumerate(vertices)}
+    #     # -----------------------------
+    #     # Helpers
+    #     # -----------------------------
+    #     def _unwrap(x):
+    #         if isinstance(x, list) and len(x) == 1:
+    #             return x[0]
+    #         return x
 
-        # ---------- weight handling ----------
-        dist_attr = None
-        if isinstance(weightKey, str) and weightKey:
-            wl = weightKey.lower()
-            if ("len" in wl) or ("dis" in wl):
-                weightKey = "length"
-            dist_attr = weightKey
+    #     def _as_float(x, default=0.0):
+    #         x = _unwrap(x)
+    #         if isinstance(x, numbers.Number):
+    #             return float(x)
+    #         return float(default)
 
-        def edge_weight(e):
-            if dist_attr == "length":
-                try:
-                    return float(Edge.Length(e))
-                except Exception:
-                    return 1.0
-            elif dist_attr:
-                try:
-                    d = Topology.Dictionary(e)
-                    w = Dictionary.ValueAtKey(d, dist_attr)
-                    return float(w) if (w is not None) else 1.0
-                except Exception:
-                    return 1.0
-            else:
-                return 1.0
+    #     def _round(x):
+    #         if mantissa is None or mantissa <= 0:
+    #             return float(x)
+    #         return round(float(x), mantissa)
 
-        # ---------- build undirected adjacency (min weight on multi-edges) ----------
-        edges = Graph.Edges(graph)
-        # For per-edge outputs in input order:
-        edge_end_idx = []  # [(iu, iv)] aligned with edges list (undirected as sorted pair)
-        tmp_adj = [dict() for _ in range(n)]  # temporary: dedup by neighbor with min weight
+    #     def _normalize_flat(vals):
+    #         if not vals:
+    #             return []
+    #         xs = [float(v) for v in vals]
+    #         mn = min(xs)
+    #         mx = max(xs)
+    #         eps = tolerance if (tolerance and tolerance > 0) else 1e-12
+    #         if abs(mx - mn) < eps:
+    #             return [0.0 for _ in xs]
+    #         denom = (mx - mn)
+    #         return [(x - mn) / denom for x in xs]
 
-        for e in edges:
-            try:
-                u = Edge.StartVertex(e)
-                v = Edge.EndVertex(e)
-            except Exception:
-                continue
-            iu = idx_of.get(vkey(u))
-            iv = idx_of.get(vkey(v))
-            if iu is None or iv is None or iu == iv:
-                # still store mapping for return list to avoid index error
-                pair = None
-            else:
-                w = edge_weight(e)
-                # keep minimal weight for duplicates
-                pu = tmp_adj[iu].get(iv)
-                if (pu is None) or (w < pu):
-                    tmp_adj[iu][iv] = w
-                    tmp_adj[iv][iu] = w
-                pair = (iu, iv) if iu < iv else (iv, iu)
-            edge_end_idx.append(pair)
+    #     def _color_range(vals, unit_range: bool):
+    #         if not vals:
+    #             return (0.0, 1.0)
+    #         if unit_range:
+    #             return (0.0, 1.0)
+    #         mn = min(vals)
+    #         mx = max(vals)
+    #         eps = tolerance if (tolerance and tolerance > 0) else 1e-12
+    #         if abs(mx - mn) < eps:
+    #             mx = mn + eps
+    #         return (mn, mx)
 
-        # finalize adjacency as list-of-tuples for fast loops
-        adj = [list(neigh.items()) for neigh in tmp_adj]  # adj[i] = [(j, w), ...]
-        del tmp_adj
+    #     def _apply_value_and_color_to_vertices(verts, vals, unit_range: bool):
+    #         if not verts or not vals:
+    #             return list(verts)
+    #         mn, mx = _color_range(vals, unit_range=unit_range)
+    #         out = list(verts)
+    #         m = min(len(out), len(vals))
+    #         for i in range(m):
+    #             try:
+    #                 v = float(vals[i])
+    #                 c = Color.AnyToHex(Color.ByValueInRange(v, minValue=mn, maxValue=mx, colorScale=colorScale))
+    #                 d = Topology.Dictionary(out[i])
+    #                 d = Dictionary.SetValuesAtKeys(d, [key, colorKey], [v, c])
+    #                 out[i] = Topology.SetDictionary(out[i], d)
+    #             except Exception:
+    #                 continue
+    #         return out
 
-        # detect weightedness
-        weighted = False
-        for i in range(n):
-            if any(abs(w - 1.0) > 1e-12 for _, w in adj[i]):
-                weighted = True
-                break
+    #     def _apply_value_and_color_to_edges(edges, vals, unit_range: bool):
+    #         if not edges or not vals:
+    #             return list(edges)
+    #         mn, mx = _color_range(vals, unit_range=unit_range)
+    #         out = list(edges)
+    #         m = min(len(out), len(vals))
+    #         for i in range(m):
+    #             try:
+    #                 v = float(vals[i])
+    #                 c = Color.AnyToHex(Color.ByValueInRange(v, minValue=mn, maxValue=mx, colorScale=colorScale))
+    #                 d = Topology.Dictionary(out[i])
+    #                 d = Dictionary.SetValuesAtKeys(d, [key, colorKey], [v, c])
+    #                 out[i] = Topology.SetDictionary(out[i], d)
+    #             except Exception:
+    #                 continue
+    #         return out
 
-        # ---------- Brandes ----------
-        CB_v = [0.0] * n
-        CB_e = {}  # key: (min_i, max_j) -> score (only if useEdges)
+    #     # Weight handling (NetworkX-style: weight is distance/cost)
+    #     if weightKey is None:
+    #         wk_mode = "unit"
+    #         wk_key = None
+    #     elif isinstance(weightKey, str) and (("len" in weightKey.lower()) or ("dis" in weightKey.lower())):
+    #         wk_mode = "length"
+    #         wk_key = None
+    #     else:
+    #         wk_mode = "dict"
+    #         wk_key = weightKey
 
-        if n > 1:
-            if not weighted:
-                # Unweighted BFS Brandes
-                for s in range(n):
-                    S = []
-                    P = [[] for _ in range(n)]
-                    sigma = [0.0] * n
-                    sigma[s] = 1.0
-                    dist = [-1] * n
-                    dist[s] = 0
-                    Q = deque([s])
-                    pushQ, popQ = Q.append, Q.popleft
+    #     def _edge_weight(e):
+    #         if wk_mode == "unit":
+    #             return 1.0
+    #         if wk_mode == "length":
+    #             return float(Edge.Length(e, mantissa=mantissa))
+    #         d = Topology.Dictionary(e)
+    #         return _as_float(Dictionary.ValueAtKey(d, wk_key), default=1.0)
 
-                    while Q:
-                        v = popQ()
-                        S.append(v)
-                        dv = dist[v]
-                        sv = sigma[v]
-                        for w, _ in adj[v]:
-                            if dist[w] < 0:
-                                dist[w] = dv + 1
-                                pushQ(w)
-                            if dist[w] == dv + 1:
-                                sigma[w] += sv
-                                P[w].append(v)
+    #     # Coordinate-keyed vertex mapping (robust to object identity)
+    #     tol = tolerance if (tolerance and tolerance > 0) else 1e-9
 
-                    delta = [0.0] * n
-                    while S:
-                        w = S.pop()
-                        sw = sigma[w]
-                        dw = 1.0 + delta[w]
-                        for v in P[w]:
-                            c = (sigma[v] / sw) * dw
-                            delta[v] += c
-                            if useEdges:
-                                a, b = (v, w) if v < w else (w, v)
-                                CB_e[a, b] = CB_e.get((a, b), 0.0) + c
-                        if w != s:
-                            CB_v[w] += delta[w]
-            else:
-                # Weighted Dijkstra-Brandes
-                import heapq
-                EPS = 1e-12
-                for s in range(n):
-                    S = []
-                    P = [[] for _ in range(n)]
-                    sigma = [0.0] * n
-                    sigma[s] = 1.0
-                    dist = [math.inf] * n
-                    dist[s] = 0.0
-                    H = [(0.0, s)]
-                    pushH, popH = heapq.heappush, heapq.heappop
+    #     def vkey(v):
+    #         x = Vertex.X(v); y = Vertex.Y(v); z = Vertex.Z(v)
+    #         return (round(x / tol), round(y / tol), round(z / tol))
 
-                    while H:
-                        dv, v = popH(H)
-                        if dv > dist[v] + EPS:
-                            continue
-                        S.append(v)
-                        sv = sigma[v]
-                        for w, wgt in adj[v]:
-                            nd = dv + wgt
-                            dw = dist[w]
-                            if nd + EPS < dw:
-                                dist[w] = nd
-                                sigma[w] = sv
-                                P[w] = [v]
-                                pushH(H, (nd, w))
-                            elif abs(nd - dw) <= EPS:
-                                sigma[w] += sv
-                                P[w].append(v)
+    #     # -----------------------------
+    #     # Build adjacency once
+    #     # -----------------------------
+    #     edges = Graph.Edges(graph)
+    #     if not edges:
+    #         if useEdges:
+    #             return []
+    #         verts = Graph.Vertices(graph)
+    #         vals = [_round(0.0) for _ in verts]
+    #         _apply_value_and_color_to_vertices(verts, vals, unit_range=True if nxCompatible else normalize)
+    #         return vals
 
-                    delta = [0.0] * n
-                    while S:
-                        w = S.pop()
-                        sw = sigma[w]
-                        if sw == 0.0:
-                            continue
-                        dw = 1.0 + delta[w]
-                        for v in P[w]:
-                            c = (sigma[v] / sw) * dw
-                            delta[v] += c
-                            if compute_edges:
-                                a, b = (v, w) if v < w else (w, v)
-                                CB_e[a, b] = CB_e.get((a, b), 0.0) + c
-                        if w != s:
-                            CB_v[w] += delta[w]
+    #     key_to_idx = {}
+    #     idx_to_key = []
 
-        # ---------- normalization ----------
-        # NetworkX-compatible normalization (undirected):
-        # vertices/edges factor = 2/((n-1)(n-2)) for n > 2 when normalized=True
-        if nxCompatible:
-            if normalize and n > 2:
-                scale = 2.0 / ((n - 1) * (n - 2))
-                CB_v = [v * scale for v in CB_v]
-                if compute_edges:
-                    for k in list(CB_e.keys()):
-                        CB_e[k] *= scale
-            # else: leave raw Brandes scores (normalized=False behavior)
-            values_raw = CB_v if not compute_edges else [
-                CB_e.get(tuple(sorted(pair)) if pair else None, 0.0) if pair else 0.0
-                for pair in edge_end_idx
-            ]
-            values_for_return = values_raw
-        else:
-            # Rescale to [0,1] regardless of theoretical normalization
-            values_raw = CB_v if not compute_edges else [
-                CB_e.get(tuple(sorted(pair)) if pair else None, 0.0) if pair else 0.0
-                for pair in edge_end_idx
-            ]
-            values_for_return = Helper.Normalize(values_raw)
+    #     def _get_idx_for_vertex(v):
+    #         k = vkey(v)
+    #         if k not in key_to_idx:
+    #             key_to_idx[k] = len(idx_to_key)
+    #             idx_to_key.append(k)
+    #         return key_to_idx[k]
 
-        # rounding once
-        if mantissa is not None and mantissa >= 0:
-            values_for_return = [round(v, mantissa) for v in values_for_return]
+    #     adj = defaultdict(list)  # node_idx -> list[(nbr_idx, weight, edge_index)]
+    #     for ei, e in enumerate(edges):
+    #         try:
+    #             sv = Edge.StartVertex(e)
+    #             ev = Edge.EndVertex(e)
+    #         except Exception:
+    #             continue
+    #         u = _get_idx_for_vertex(sv)
+    #         v = _get_idx_for_vertex(ev)
+    #         w = _edge_weight(e)
+    #         # undirected
+    #         adj[u].append((v, w, ei))
+    #         adj[v].append((u, w, ei))
 
-        # ---------- color mapping ----------
-        if values_for_return:
-            min_v, max_v = min(values_for_return), max(values_for_return)
-        else:
-            min_v, max_v = 0.0, 1.0
-        if abs(max_v - min_v) < tolerance:
-            max_v = min_v + tolerance
+    #     n_nodes = len(idx_to_key)
 
-        # annotate (vertices or edges) in input order
-        if compute_edges:
-            elems = edges
-        else:
-            elems = vertices
-        for i, value in enumerate(values_for_return):
-            d = Topology.Dictionary(elems[i])
-            color_hex = Color.AnyToHex(
-                Color.ByValueInRange(value, minValue=min_v, maxValue=max_v, colorScale=colorScale)
-            )
-            d = Dictionary.SetValuesAtKeys(d, [key, colorKey], [value, color_hex])
-            elems[i] = Topology.SetDictionary(elems[i], d)
+    #     # -----------------------------
+    #     # Brandes (undirected): returns RAW (unnormalized) and already /2 corrected
+    #     # -----------------------------
+    #     def _brandes_unweighted():
+    #         CBv = [0.0] * n_nodes
+    #         CBe = [0.0] * len(edges)
 
-        return values_for_return
+    #         for s in range(n_nodes):
+    #             S = []
+    #             P = [[] for _ in range(n_nodes)]         # P[w] = list of (v, ei) predecessors
+    #             sigma = [0.0] * n_nodes                  # number of shortest paths
+    #             dist = [-1] * n_nodes
+
+    #             sigma[s] = 1.0
+    #             dist[s] = 0
+    #             Q = deque([s])
+
+    #             while Q:
+    #                 v = Q.popleft()
+    #                 S.append(v)
+    #                 dv = dist[v]
+    #                 for (w, _wt, ei) in adj.get(v, []):
+    #                     if dist[w] < 0:
+    #                         Q.append(w)
+    #                         dist[w] = dv + 1
+    #                     if dist[w] == dv + 1:
+    #                         sigma[w] += sigma[v]
+    #                         P[w].append((v, ei))
+
+    #             delta = [0.0] * n_nodes
+    #             while S:
+    #                 w = S.pop()
+    #                 for (v, ei) in P[w]:
+    #                     c = 0.0 if sigma[w] == 0 else (sigma[v] / sigma[w]) * (1.0 + delta[w])
+    #                     CBe[ei] += c
+    #                     delta[v] += c
+    #                 if w != s:
+    #                     CBv[w] += delta[w]
+
+    #         # undirected correction
+    #         return [x / 2.0 for x in CBv], [x / 2.0 for x in CBe]
+
+    #     def _brandes_weighted():
+    #         CBv = [0.0] * n_nodes
+    #         CBe = [0.0] * len(edges)
+    #         eq_eps = 1e-12  # equality tolerance for shortest-path ties
+
+    #         for s in range(n_nodes):
+    #             S = []
+    #             P = [[] for _ in range(n_nodes)]
+    #             sigma = [0.0] * n_nodes
+    #             dist = [float("inf")] * n_nodes
+
+    #             sigma[s] = 1.0
+    #             dist[s] = 0.0
+
+    #             heap = [(0.0, s)]
+    #             while heap:
+    #                 dv, v = heapq.heappop(heap)
+    #                 if dv > dist[v] + eq_eps:
+    #                     continue
+    #                 S.append(v)
+    #                 for (w, wt, ei) in adj.get(v, []):
+    #                     vw_dist = dv + float(wt)
+    #                     if vw_dist < dist[w] - eq_eps:
+    #                         dist[w] = vw_dist
+    #                         heapq.heappush(heap, (vw_dist, w))
+    #                         sigma[w] = sigma[v]
+    #                         P[w] = [(v, ei)]
+    #                     elif abs(vw_dist - dist[w]) <= eq_eps:
+    #                         sigma[w] += sigma[v]
+    #                         P[w].append((v, ei))
+
+    #             delta = [0.0] * n_nodes
+    #             while S:
+    #                 w = S.pop()
+    #                 for (v, ei) in P[w]:
+    #                     c = 0.0 if sigma[w] == 0 else (sigma[v] / sigma[w]) * (1.0 + delta[w])
+    #                     CBe[ei] += c
+    #                     delta[v] += c
+    #                 if w != s:
+    #                     CBv[w] += delta[w]
+
+    #         return [x / 2.0 for x in CBv], [x / 2.0 for x in CBe]
+
+    #     if weightKey is None:
+    #         CBv_nodes, CBe_edges = _brandes_unweighted()
+    #     else:
+    #         CBv_nodes, CBe_edges = _brandes_weighted()
+
+    #     # -----------------------------
+    #     # NetworkX normalization (undirected)
+    #     # -----------------------------
+    #     def _nx_scale_vertex(vals):
+    #         # nx: normalized=True => multiply by 2/((n-1)(n-2)) for undirected
+    #         n = n_nodes
+    #         if n <= 2:
+    #             return [0.0 for _ in vals]
+    #         scale = 2.0 / ((n - 1) * (n - 2))
+    #         return [float(v) * scale for v in vals]
+
+    #     def _nx_scale_edge(vals):
+    #         # nx edge betweenness normalized=True => multiply by 2/(n(n-1)) for undirected
+    #         n = n_nodes
+    #         if n <= 1:
+    #             return [0.0 for _ in vals]
+    #         scale = 2.0 / (n * (n - 1))
+    #         return [float(v) * scale for v in vals]
+
+    #     # -----------------------------
+    #     # Edge mode
+    #     # -----------------------------
+    #     if useEdges:
+    #         out_vals = [float(x) for x in CBe_edges]
+
+    #         # Bundling by SUM (if requested)
+    #         if edgeKey:
+    #             group_sum = {}
+    #             group_id = []
+    #             for ei, e in enumerate(edges):
+    #                 d = Topology.Dictionary(e)
+    #                 gid = _unwrap(Dictionary.ValueAtKey(d, edgeKey))
+    #                 if gid is None:
+    #                     gid = f"__edge_{ei}"
+    #                 group_id.append(gid)
+    #                 group_sum[gid] = group_sum.get(gid, 0.0) + float(out_vals[ei])
+    #             out_vals = [float(group_sum[group_id[ei]]) for ei in range(len(edges))]
+
+    #         # Scaling / normalization precedence
+    #         if nxCompatible:
+    #             out_vals = _nx_scale_edge(out_vals)
+    #             unit_range_for_color = True
+    #         else:
+    #             if normalize:
+    #                 out_vals = _normalize_flat(out_vals)
+    #                 unit_range_for_color = True
+    #             else:
+    #                 unit_range_for_color = False
+
+    #         out_vals = [_round(v) for v in out_vals]
+    #         _apply_value_and_color_to_edges(edges, out_vals, unit_range=unit_range_for_color)
+    #         return out_vals
+
+    #     # -----------------------------
+    #     # Vertex mode (map back to Graph.Vertices order)
+    #     # -----------------------------
+    #     graph_vertices = Graph.Vertices(graph)
+    #     if not graph_vertices:
+    #         return []
+
+    #     # values per quantized vertex key
+    #     key_value = {k: float(CBv_nodes[idx]) for k, idx in key_to_idx.items()}
+
+    #     out_vals = [float(key_value.get(vkey(v), 0.0)) for v in graph_vertices]
+
+    #     if nxCompatible:
+    #         out_vals = _nx_scale_vertex(out_vals)
+    #         unit_range_for_color = True
+    #     else:
+    #         if normalize:
+    #             out_vals = _normalize_flat(out_vals)
+    #             unit_range_for_color = True
+    #         else:
+    #             unit_range_for_color = False
+
+    #     out_vals = [_round(v) for v in out_vals]
+    #     _apply_value_and_color_to_vertices(graph_vertices, out_vals, unit_range=unit_range_for_color)
+    #     return out_vals
+
+    # @staticmethod
+    # def BetweennessCentrality_older(
+    #     graph,
+    #     useEdges: bool = False,
+    #     weightKey: str = "length",
+    #     normalize: bool = False,
+    #     nxCompatible: bool = False,
+    #     key: str = "betweenness_centrality",
+    #     colorKey: str = "bc_color",
+    #     colorScale: str = "viridis",
+    #     mantissa: int = 6,
+    #     tolerance: float = 0.001,
+    #     silent: bool = False
+    # ):
+    #     """
+    #     Returns the betweenness centrality of the input graph. The order of the returned list is the same as the order of vertices/edges. See https://en.wikipedia.org/wiki/Betweenness_centrality.
+    #     Optimized betweenness centrality (undirected) using Brandes:
+    #     - Unweighted: O(VE) BFS per source
+    #     - Weighted: Dijkstra-Brandes with binary heap
+    #     - Vertex or Edge mode
+    #     - Optional NetworkX-compatible normalization or 0..1 rescale
+    #     Parameters
+    #     ----------
+    #     graph : topologic_core.Graph
+    #         The input graph.
+    #     useEdges : bool , optional
+    #         If set to True, the calculation uses the edges rather than the vertices. Default is False.
+    #     weightKey : str , optional
+    #         If specified, the value in the connected edges' dictionary specified by the weightKey string will be aggregated to calculate
+    #         the shortest path. If a numeric value cannot be retrieved from an edge, a value of 1 is used instead.
+    #         This is used in weighted graphs. if weightKey is set to "Length" or "Distance", the length of the edge will be used as its weight.
+    #     normalize : bool , optional
+    #         If set to True, the values are normalized to be in the range 0 to 1. Otherwise they are not. Default is False.
+    #     nxCompatible : bool , optional
+    #         If set to True, and normalize input parameter is also set to True, the values are set to be identical to NetworkX values. Otherwise, they are normalized between 0 and 1. Default is False.
+    #     key : str , optional
+    #         The desired dictionary key under which to store the betweenness centrality score. Default is "betweenness_centrality".
+    #     colorKey : str , optional
+    #         The desired dictionary key under which to store the betweenness centrality color. Default is "betweenness_centrality".
+    #     colorScale : str , optional
+    #         The desired type of plotly color scales to use (e.g. "viridis", "plasma"). Default is "viridis". For a full list of names, see https://plotly.com/python/builtin-colorscales/.
+    #         In addition to these, three color-blind friendly scales are included. These are "protanopia", "deuteranopia", and "tritanopia" for red, green, and blue colorblindness respectively.
+    #     mantissa : int , optional
+    #         The number of decimal places to round the result to. Default is 6.
+    #     tolerance : float , optional
+    #         The desired tolerance. Default is 0.0001.
+
+    #     Returns
+    #     -------
+    #     list
+    #         The betweenness centrality of the input list of vertices within the input graph. The values are in the range 0 to 1.
+    #     """
+    #     from collections import deque
+    #     import math
+
+    #     from topologicpy.Topology import Topology
+    #     from topologicpy.Dictionary import Dictionary
+    #     from topologicpy.Color import Color
+    #     from topologicpy.Helper import Helper
+    #     from topologicpy.Vertex import Vertex
+    #     from topologicpy.Edge import Edge
+    #     # We are inside Graph.* context; Graph.<...> methods available.
+
+    #     # ---------- validate ----------
+    #     if not Topology.IsInstance(graph, "graph"):
+    #         if not silent:
+    #             print("Graph.BetweennessCentrality - Error: The input is not a valid Graph. Returning None.")
+    #         return None
+
+    #     vertices = Graph.Vertices(graph)
+    #     n = len(vertices)
+    #     if n == 0:
+    #         if not silent:
+    #             print("Graph.BetweennessCentrality - Warning: Graph has no vertices. Returning [].")
+    #         return []
+
+    #     compute_edges = "edge" in method_l
+
+    #     # ---------- stable vertex indexing ----------
+    #     def vkey(v, r=9):
+    #         d = Topology.Dictionary(v)
+    #         vid = Dictionary.ValueAtKey(d, "id")
+    #         if vid is not None:
+    #             return ("id", vid)
+    #         return ("xyz", round(Vertex.X(v), r), round(Vertex.Y(v), r), round(Vertex.Z(v), r))
+
+    #     idx_of = {vkey(v): i for i, v in enumerate(vertices)}
+
+    #     # ---------- weight handling ----------
+    #     dist_attr = None
+    #     if isinstance(weightKey, str) and weightKey:
+    #         wl = weightKey.lower()
+    #         if ("len" in wl) or ("dis" in wl):
+    #             weightKey = "length"
+    #         dist_attr = weightKey
+
+    #     def edge_weight(e):
+    #         if dist_attr == "length":
+    #             try:
+    #                 return float(Edge.Length(e))
+    #             except Exception:
+    #                 return 1.0
+    #         elif dist_attr:
+    #             try:
+    #                 d = Topology.Dictionary(e)
+    #                 w = Dictionary.ValueAtKey(d, dist_attr)
+    #                 return float(w) if (w is not None) else 1.0
+    #             except Exception:
+    #                 return 1.0
+    #         else:
+    #             return 1.0
+
+    #     # ---------- build undirected adjacency (min weight on multi-edges) ----------
+    #     edges = Graph.Edges(graph)
+    #     # For per-edge outputs in input order:
+    #     edge_end_idx = []  # [(iu, iv)] aligned with edges list (undirected as sorted pair)
+    #     tmp_adj = [dict() for _ in range(n)]  # temporary: dedup by neighbor with min weight
+
+    #     for e in edges:
+    #         try:
+    #             u = Edge.StartVertex(e)
+    #             v = Edge.EndVertex(e)
+    #         except Exception:
+    #             continue
+    #         iu = idx_of.get(vkey(u))
+    #         iv = idx_of.get(vkey(v))
+    #         if iu is None or iv is None or iu == iv:
+    #             # still store mapping for return list to avoid index error
+    #             pair = None
+    #         else:
+    #             w = edge_weight(e)
+    #             # keep minimal weight for duplicates
+    #             pu = tmp_adj[iu].get(iv)
+    #             if (pu is None) or (w < pu):
+    #                 tmp_adj[iu][iv] = w
+    #                 tmp_adj[iv][iu] = w
+    #             pair = (iu, iv) if iu < iv else (iv, iu)
+    #         edge_end_idx.append(pair)
+
+    #     # finalize adjacency as list-of-tuples for fast loops
+    #     adj = [list(neigh.items()) for neigh in tmp_adj]  # adj[i] = [(j, w), ...]
+    #     del tmp_adj
+
+    #     # detect weightedness
+    #     weighted = False
+    #     for i in range(n):
+    #         if any(abs(w - 1.0) > 1e-12 for _, w in adj[i]):
+    #             weighted = True
+    #             break
+
+    #     # ---------- Brandes ----------
+    #     CB_v = [0.0] * n
+    #     CB_e = {}  # key: (min_i, max_j) -> score (only if useEdges)
+
+    #     if n > 1:
+    #         if not weighted:
+    #             # Unweighted BFS Brandes
+    #             for s in range(n):
+    #                 S = []
+    #                 P = [[] for _ in range(n)]
+    #                 sigma = [0.0] * n
+    #                 sigma[s] = 1.0
+    #                 dist = [-1] * n
+    #                 dist[s] = 0
+    #                 Q = deque([s])
+    #                 pushQ, popQ = Q.append, Q.popleft
+
+    #                 while Q:
+    #                     v = popQ()
+    #                     S.append(v)
+    #                     dv = dist[v]
+    #                     sv = sigma[v]
+    #                     for w, _ in adj[v]:
+    #                         if dist[w] < 0:
+    #                             dist[w] = dv + 1
+    #                             pushQ(w)
+    #                         if dist[w] == dv + 1:
+    #                             sigma[w] += sv
+    #                             P[w].append(v)
+
+    #                 delta = [0.0] * n
+    #                 while S:
+    #                     w = S.pop()
+    #                     sw = sigma[w]
+    #                     dw = 1.0 + delta[w]
+    #                     for v in P[w]:
+    #                         c = (sigma[v] / sw) * dw
+    #                         delta[v] += c
+    #                         if useEdges:
+    #                             a, b = (v, w) if v < w else (w, v)
+    #                             CB_e[a, b] = CB_e.get((a, b), 0.0) + c
+    #                     if w != s:
+    #                         CB_v[w] += delta[w]
+    #         else:
+    #             # Weighted Dijkstra-Brandes
+    #             import heapq
+    #             EPS = 1e-12
+    #             for s in range(n):
+    #                 S = []
+    #                 P = [[] for _ in range(n)]
+    #                 sigma = [0.0] * n
+    #                 sigma[s] = 1.0
+    #                 dist = [math.inf] * n
+    #                 dist[s] = 0.0
+    #                 H = [(0.0, s)]
+    #                 pushH, popH = heapq.heappush, heapq.heappop
+
+    #                 while H:
+    #                     dv, v = popH(H)
+    #                     if dv > dist[v] + EPS:
+    #                         continue
+    #                     S.append(v)
+    #                     sv = sigma[v]
+    #                     for w, wgt in adj[v]:
+    #                         nd = dv + wgt
+    #                         dw = dist[w]
+    #                         if nd + EPS < dw:
+    #                             dist[w] = nd
+    #                             sigma[w] = sv
+    #                             P[w] = [v]
+    #                             pushH(H, (nd, w))
+    #                         elif abs(nd - dw) <= EPS:
+    #                             sigma[w] += sv
+    #                             P[w].append(v)
+
+    #                 delta = [0.0] * n
+    #                 while S:
+    #                     w = S.pop()
+    #                     sw = sigma[w]
+    #                     if sw == 0.0:
+    #                         continue
+    #                     dw = 1.0 + delta[w]
+    #                     for v in P[w]:
+    #                         c = (sigma[v] / sw) * dw
+    #                         delta[v] += c
+    #                         if compute_edges:
+    #                             a, b = (v, w) if v < w else (w, v)
+    #                             CB_e[a, b] = CB_e.get((a, b), 0.0) + c
+    #                     if w != s:
+    #                         CB_v[w] += delta[w]
+
+    #     # ---------- normalization ----------
+    #     # NetworkX-compatible normalization (undirected):
+    #     # vertices/edges factor = 2/((n-1)(n-2)) for n > 2 when normalized=True
+    #     if nxCompatible:
+    #         if normalize and n > 2:
+    #             scale = 2.0 / ((n - 1) * (n - 2))
+    #             CB_v = [v * scale for v in CB_v]
+    #             if compute_edges:
+    #                 for k in list(CB_e.keys()):
+    #                     CB_e[k] *= scale
+    #         # else: leave raw Brandes scores (normalized=False behavior)
+    #         values_raw = CB_v if not compute_edges else [
+    #             CB_e.get(tuple(sorted(pair)) if pair else None, 0.0) if pair else 0.0
+    #             for pair in edge_end_idx
+    #         ]
+    #         values_for_return = values_raw
+    #     else:
+    #         # Rescale to [0,1] regardless of theoretical normalization
+    #         values_raw = CB_v if not compute_edges else [
+    #             CB_e.get(tuple(sorted(pair)) if pair else None, 0.0) if pair else 0.0
+    #             for pair in edge_end_idx
+    #         ]
+    #         values_for_return = Helper.Normalize(values_raw)
+
+    #     # rounding once
+    #     if mantissa is not None and mantissa >= 0:
+    #         values_for_return = [round(v, mantissa) for v in values_for_return]
+
+    #     # ---------- color mapping ----------
+    #     if values_for_return:
+    #         min_v, max_v = min(values_for_return), max(values_for_return)
+    #     else:
+    #         min_v, max_v = 0.0, 1.0
+    #     if abs(max_v - min_v) < tolerance:
+    #         max_v = min_v + tolerance
+
+    #     # annotate (vertices or edges) in input order
+    #     if compute_edges:
+    #         elems = edges
+    #     else:
+    #         elems = vertices
+    #     for i, value in enumerate(values_for_return):
+    #         d = Topology.Dictionary(elems[i])
+    #         color_hex = Color.AnyToHex(
+    #             Color.ByValueInRange(value, minValue=min_v, maxValue=max_v, colorScale=colorScale)
+    #         )
+    #         d = Dictionary.SetValuesAtKeys(d, [key, colorKey], [value, color_hex])
+    #         elems[i] = Topology.SetDictionary(elems[i], d)
+
+    #     return values_for_return
 
     # @staticmethod
     # def BetweennessCentrality_old(graph, method: str = "vertex", weightKey="length", normalize: bool = False, nxCompatible: bool = False, key: str = "betweenness_centrality", colorKey="bc_color", colorScale="viridis", mantissa: int = 6, tolerance: float = 0.001, silent: bool = False):
@@ -8033,7 +8958,7 @@ class Graph:
         except Exception:
             pass
         return graph
-    
+
     @staticmethod
     def ClosenessCentrality(
         graph,
@@ -8042,6 +8967,8 @@ class Graph:
         nxCompatible: bool = True,
         useEdges: bool = False,
         edgeKey: str = None,
+        angular: bool = False,
+        angularWeightKey: str = "angular_weight",
         key: str = "closeness_centrality",
         colorKey: str = "cc_color",
         colorScale: str = "viridis",
@@ -8070,6 +8997,11 @@ class Graph:
             If not None, the value associated with that key in each edge's dictionary is used to bundle the edges
             into one entity for the calculation. Otherwise, each edge segment is assumed to be an independent
             entity. Default is None.
+        angular : bool , optional
+            If set to True, the calculation uses angular weights between adjacent edge segments. This option is valid only when useEdges is set to True.
+            Default is False.
+        angularWeightKey : str , optional
+            The dictionary key under which to store the computed angular weight on the line graph edges. Default is "angular_weight".
         key : str , optional
             The desired dictionary key name under which to store the calculated value. Default is "closeness_centrality".
         colorKey : str , optional
@@ -8090,7 +9022,6 @@ class Graph:
 
         """
         from collections import deque
-        import math
 
         from topologicpy.Topology import Topology
         from topologicpy.Dictionary import Dictionary
@@ -8098,65 +9029,7 @@ class Graph:
         from topologicpy.Helper import Helper
         from topologicpy.Vertex import Vertex
         from topologicpy.Edge import Edge
-        # NOTE: We are inside Graph.*, so Graph.<...> methods are available.
 
-        # Validate graph
-        if not Topology.IsInstance(graph, "graph"):
-            if not silent:
-                print("Graph.ClosenessCentrality - Error: The input is not a valid Graph. Returning None.")
-            return None
-
-        vertices = Graph.Vertices(graph)
-        edges = Graph.Edges(graph)
-        # Give each edge a unique and stable id
-        edge_dicts = []
-        for i, e in enumerate(edges):
-            d = Topology.Dictionary(e)
-            d = Dictionary.SetValueAtKey(d, "u_edge_id", i)
-            edge_dicts.append(d)
-            e = Topology.SetDictionary(e, d)
-        n = len(vertices)
-        if n == 0:
-            if not silent:
-                print("Graph.ClosenessCentrality - Warning: Graph has no vertices. Returning [].")
-            return []
-
-        # Check for useEdges
-        if useEdges:
-            # Convert to a Line graph where edges become vertices
-            l_graph = Graph.LineGraph(graph, transferEdgeDictionaries=True)
-            # Check if user wants to bundle edges:
-            if edgeKey:
-                l_graph = Graph.Quotient(l_graph, key=edgeKey, groupLabelKey="label", transferDictionaries=True)
-            _ = Graph.ClosenessCentrality(l_graph,
-                                             weightKey = None,
-                                             normalize = normalize,
-                                             nxCompatible = normalize,
-                                             useEdges = False,
-                                             edgeKey = None,
-                                             key = key,
-                                             colorKey = colorKey,
-                                             colorScale = colorScale,
-                                             mantissa = mantissa,
-                                             tolerance = tolerance,
-                                             silent = silent)
-            l_verts = Graph.Vertices(l_graph)
-            vert_dicts = [Topology.Dictionary(v) for v in l_verts]
-            if edgeKey == None:
-                edgeKey = "u_edge_id"
-            final_dicts = Dictionary.BooleanDictionariesByKey(edge_dicts,
-                                       vert_dicts,
-                                       key=edgeKey,
-                                       exclusive = True,
-                                       operation="impose")
-            temp_centralities = []
-            for i, d in enumerate(final_dicts):
-                d = Dictionary.RemoveKey(d, "u_edge_id")
-                v = Dictionary.ValueAtKey(d, key)
-                temp_centralities.append(v)
-                e = Topology.SetDictionary(edges[i], d)
-            return temp_centralities
-        # Stable vertex key (prefer an 'id' in the vertex dictionary; else rounded coords)
         def vkey(v, r=9):
             d = Topology.Dictionary(v)
             vid = Dictionary.ValueAtKey(d, "id")
@@ -8164,20 +9037,182 @@ class Graph:
                 return ("id", vid)
             return ("xyz", round(Vertex.X(v), r), round(Vertex.Y(v), r), round(Vertex.Z(v), r))
 
+        def vertex_key(v):
+            return (
+                int(round(Vertex.X(v) / tolerance)),
+                int(round(Vertex.Y(v) / tolerance)),
+                int(round(Vertex.Z(v) / tolerance))
+            )
+
+        def shared_vertex(edgeA, edgeB):
+            sva = Edge.StartVertex(edgeA)
+            eva = Edge.EndVertex(edgeA)
+            svb = Edge.StartVertex(edgeB)
+            evb = Edge.EndVertex(edgeB)
+            if Topology.IsSame(sva, svb) or Topology.IsSame(sva, evb):
+                return sva
+            if Topology.IsSame(eva, svb) or Topology.IsSame(eva, evb):
+                return eva
+            return None
+
+        def oriented_edge(edge, vertex):
+            sv = Edge.StartVertex(edge)
+            ev = Edge.EndVertex(edge)
+            if Topology.IsSame(vertex, sv):
+                return edge
+            if Topology.IsSame(vertex, ev):
+                return Edge.Reverse(edge)
+            return None
+
+        def build_angular_line_graph(input_graph, angularWeightKey="angular_weight"):
+            """
+            Builds a line graph and stores angular weights on its edges.
+            """
+            original_edges = Graph.Edges(input_graph)
+            for i, e in enumerate(original_edges):
+                d = Topology.Dictionary(e)
+                d = Dictionary.SetValueAtKey(d, "u_edge_id", i)
+                _ = Topology.SetDictionary(e, d)
+
+            l_graph = Graph.LineGraph(input_graph, transferEdgeDictionaries=True)
+            l_vertices = Graph.Vertices(l_graph)
+            l_edges = Graph.Edges(l_graph)
+
+            id_to_edge = {}
+            for e in original_edges:
+                d = Topology.Dictionary(e)
+                eid = Dictionary.ValueAtKey(d, "u_edge_id")
+                if eid is not None:
+                    id_to_edge[eid] = e
+
+            for le in l_edges:
+                sv = Edge.StartVertex(le)
+                ev = Edge.EndVertex(le)
+                dsv = Topology.Dictionary(sv)
+                dev = Topology.Dictionary(ev)
+                idA = Dictionary.ValueAtKey(dsv, "u_edge_id")
+                idB = Dictionary.ValueAtKey(dev, "u_edge_id")
+
+                eA = id_to_edge.get(idA, None)
+                eB = id_to_edge.get(idB, None)
+                if eA is None or eB is None:
+                    continue
+
+                jv = shared_vertex(eA, eB)
+                if jv is None:
+                    continue
+
+                oeA = oriented_edge(eA, jv)
+                oeB = oriented_edge(eB, jv)
+                if oeA is None or oeB is None:
+                    continue
+
+                ang = Edge.Angle(oeA, oeB, mantissa=mantissa, bracket=False)
+                if ang is None:
+                    continue
+
+                w = round(float(ang) / 90.0, mantissa)
+                d = Topology.Dictionary(le)
+                d = Dictionary.SetValueAtKey(d, angularWeightKey, w)
+                _ = Topology.SetDictionary(le, d)
+
+            return l_graph
+
+        if not Topology.IsInstance(graph, "Graph"):
+            if not silent:
+                print("Graph.ClosenessCentrality - Error: The input is not a valid Graph. Returning None.")
+            return None
+
+        vertices = Graph.Vertices(graph)
+        edges = Graph.Edges(graph)
+
+        if len(vertices) == 0:
+            if not silent:
+                print("Graph.ClosenessCentrality - Warning: Graph has no vertices. Returning [].")
+            return []
+
+        if useEdges:
+            if angular and edgeKey is not None:
+                if not silent:
+                    print("Graph.ClosenessCentrality - Error: The angular option is not compatible with edge bundling through edgeKey. Returning None.")
+                return None
+
+            edge_dicts = []
+            for i, e in enumerate(edges):
+                d = Topology.Dictionary(e)
+                d = Dictionary.SetValueAtKey(d, "u_edge_id", i)
+                edge_dicts.append(d)
+                _ = Topology.SetDictionary(e, d)
+
+            if angular:
+                l_graph = build_angular_line_graph(graph, angularWeightKey=angularWeightKey)
+                _ = Graph.ClosenessCentrality(
+                    l_graph,
+                    weightKey=angularWeightKey,
+                    normalize=normalize,
+                    nxCompatible=nxCompatible,
+                    useEdges=False,
+                    edgeKey=None,
+                    angular=False,
+                    angularWeightKey=angularWeightKey,
+                    key=key,
+                    colorKey=colorKey,
+                    colorScale=colorScale,
+                    mantissa=mantissa,
+                    tolerance=tolerance,
+                    silent=silent
+                )
+            else:
+                l_graph = Graph.LineGraph(graph, transferEdgeDictionaries=True)
+                if edgeKey:
+                    l_graph = Graph.Quotient(l_graph, key=edgeKey, groupLabelKey="label", transferDictionaries=True)
+                _ = Graph.ClosenessCentrality(
+                    l_graph,
+                    weightKey=weightKey,
+                    normalize=normalize,
+                    nxCompatible=nxCompatible,
+                    useEdges=False,
+                    edgeKey=None,
+                    angular=False,
+                    angularWeightKey=angularWeightKey,
+                    key=key,
+                    colorKey=colorKey,
+                    colorScale=colorScale,
+                    mantissa=mantissa,
+                    tolerance=tolerance,
+                    silent=silent
+                )
+
+            l_verts = Graph.Vertices(l_graph)
+            vert_dicts = [Topology.Dictionary(v) for v in l_verts]
+            lookup_key = edgeKey if edgeKey is not None else "u_edge_id"
+            final_dicts = Dictionary.BooleanDictionariesByKey(
+                edge_dicts,
+                vert_dicts,
+                key=lookup_key,
+                exclusive=True,
+                operation="impose"
+            )
+
+            temp_centralities = []
+            for i, d in enumerate(final_dicts):
+                d = Dictionary.RemoveKey(d, "u_edge_id")
+                value = Dictionary.ValueAtKey(d, key)
+                temp_centralities.append(value)
+                _ = Topology.SetDictionary(edges[i], d)
+            return temp_centralities
+
+        n = len(vertices)
         idx_of = {vkey(v): i for i, v in enumerate(vertices)}
 
-        # Normalize weight key
         distance_attr = None
         if isinstance(weightKey, str) and weightKey:
             wl = weightKey.lower()
             if ("len" in wl) or ("dis" in wl):
                 weightKey = "length"
-            distance_attr = weightKey  # may be "length" or a custom key
+            distance_attr = weightKey
 
-        # Build undirected adjacency with minimal weights per edge
-        # Use dict-of-dict to collapse multi-edges to minimal weight
-        adj = [dict() for _ in range(n)]  # adj[i][j] = weight
-        edges = Graph.Edges(graph)
+        adj = [dict() for _ in range(n)]
 
         def edge_weight(e):
             if distance_attr == "length":
@@ -8189,31 +9224,27 @@ class Graph:
                 try:
                     d = Topology.Dictionary(e)
                     w = Dictionary.ValueAtKey(d, distance_attr)
-                    return float(w) if (w is not None) else 1.0
+                    return float(w) if w is not None else 1.0
                 except Exception:
                     return 1.0
-            else:
-                return 1.0
+            return 1.0
 
         for e in edges:
             try:
                 u = Edge.StartVertex(e)
                 v = Edge.EndVertex(e)
             except Exception:
-                # Fallback in odd cases
                 continue
             iu = idx_of.get(vkey(u))
             iv = idx_of.get(vkey(v))
             if iu is None or iv is None or iu == iv:
                 continue
             w = edge_weight(e)
-            # Keep minimal weight if duplicates
             prev = adj[iu].get(iv)
             if (prev is None) or (w < prev):
                 adj[iu][iv] = w
                 adj[iv][iu] = w
 
-        # Detect weighted vs unweighted
         weighted = False
         for i in range(n):
             if any(abs(w - 1.0) > 1e-12 for w in adj[i].values()):
@@ -8222,15 +9253,14 @@ class Graph:
 
         INF = float("inf")
 
-        # ---- shortest paths helpers ----
         def bfs_sum(i):
-            """Sum of unweighted shortest path distances from i; returns (tot, reachable)."""
             dist = [-1] * n
             q = deque([i])
             dist[i] = 0
             reachable = 1
             tot = 0
-            pop = q.popleft; push = q.append
+            pop = q.popleft
+            push = q.append
             while q:
                 u = pop()
                 du = dist[u]
@@ -8243,12 +9273,12 @@ class Graph:
             return float(tot), reachable
 
         def dijkstra_sum(i):
-            """Sum of weighted shortest path distances from i; returns (tot, reachable)."""
             import heapq
             dist = [INF] * n
             dist[i] = 0.0
             hq = [(0.0, i)]
-            push = heapq.heappush; pop = heapq.heappop
+            push = heapq.heappush
+            pop = heapq.heappop
             while hq:
                 du, u = pop(hq)
                 if du > dist[u]:
@@ -8258,18 +9288,14 @@ class Graph:
                     if nd < dist[v]:
                         dist[v] = nd
                         push(hq, (nd, v))
-            # Exclude self (0.0) and unreachable (INF)
             reachable = 0
             tot = 0.0
             for d in dist:
                 if d < INF:
                     reachable += 1
                     tot += d
-            # subtract self-distance
-            tot -= 0.0
             return float(tot), reachable
 
-        # SciPy acceleration if weighted and available
         use_scipy = False
         if weighted:
             try:
@@ -8277,19 +9303,19 @@ class Graph:
                 from scipy.sparse import csr_matrix
                 from scipy.sparse.csgraph import dijkstra as sp_dijkstra
                 use_scipy = True
-                # Build CSR once
                 rows, cols, data = [], [], []
                 for i in range(n):
                     for j, w in adj[i].items():
-                        rows.append(i); cols.append(j); data.append(float(w))
+                        rows.append(i)
+                        cols.append(j)
+                        data.append(float(w))
                 if len(data) == 0:
-                    use_scipy = False  # empty graph; fall back
+                    use_scipy = False
                 else:
                     A = csr_matrix((np.array(data), (np.array(rows), np.array(cols))), shape=(n, n))
             except Exception:
                 use_scipy = False
 
-        # ---- centrality computation ----
         values = [0.0] * n
         if n == 1:
             values[0] = 0.0
@@ -8300,7 +9326,6 @@ class Graph:
                     s = max(reachable - 1, 0)
                     if tot > 0.0:
                         if nxCompatible:
-                            # Wasserman–Faust improved scaling for disconnected graphs
                             values[i] = (s / (n - 1)) * (s / tot)
                         else:
                             values[i] = s / tot
@@ -8308,17 +9333,15 @@ class Graph:
                         values[i] = 0.0
             else:
                 if use_scipy:
-                    # All-pairs from SciPy (fast)
                     import numpy as np
                     D = sp_dijkstra(A, directed=False, return_predecessors=False)
                     for i in range(n):
                         di = D[i]
                         finite = di[np.isfinite(di)]
-                        # di includes self at 0; reachable count is len(finite)
                         reachable = int(finite.size)
                         s = max(reachable - 1, 0)
-                        tot = float(finite.sum())  # includes self=0
-                        if s > 0:
+                        tot = float(finite.sum())
+                        if s > 0 and tot > 0.0:
                             if nxCompatible:
                                 values[i] = (s / (n - 1)) * (s / tot)
                             else:
@@ -8326,7 +9349,6 @@ class Graph:
                         else:
                             values[i] = 0.0
                 else:
-                    # Per-source Dijkstra
                     for i in range(n):
                         tot, reachable = dijkstra_sum(i)
                         s = max(reachable - 1, 0)
@@ -8338,12 +9360,10 @@ class Graph:
                         else:
                             values[i] = 0.0
 
-        # Optional normalization, round once
         out_vals = Helper.Normalize(values) if normalize else values
         if mantissa is not None and mantissa >= 0:
             out_vals = [round(v, mantissa) for v in out_vals]
 
-        # Color mapping range (use displayed numbers)
         if out_vals:
             min_v, max_v = min(out_vals), max(out_vals)
         else:
@@ -8351,16 +9371,343 @@ class Graph:
         if abs(max_v - min_v) < tolerance:
             max_v = min_v + tolerance
 
-        # Annotate vertices
         for i, value in enumerate(out_vals):
             d = Topology.Dictionary(vertices[i])
             color_hex = Color.AnyToHex(
                 Color.ByValueInRange(value, minValue=min_v, maxValue=max_v, colorScale=colorScale)
             )
             d = Dictionary.SetValuesAtKeys(d, [key, colorKey], [value, color_hex])
-            vertices[i] = Topology.SetDictionary(vertices[i], d)
+            _ = Topology.SetDictionary(vertices[i], d)
 
         return out_vals
+
+    # @staticmethod
+    # def ClosenessCentrality(
+    #     graph,
+    #     weightKey: str = None,
+    #     normalize: bool = False,
+    #     nxCompatible: bool = True,
+    #     useEdges: bool = False,
+    #     edgeKey: str = None,
+    #     key: str = "closeness_centrality",
+    #     colorKey: str = "cc_color",
+    #     colorScale: str = "viridis",
+    #     mantissa: int = 6,
+    #     tolerance: float = 0.0001,
+    #     silent: bool = False
+    # ):
+    #     """
+    #     Computes the closeness centrality of the input graph. See: https://en.wikipedia.org/wiki/Closeness_centrality
+
+    #     Parameters
+    #     ----------
+    #     graph : topologic_core.Graph
+    #         The input graph.
+    #     weightKey : str, optional
+    #         If set to None, each edge is assumed to have a weight of 1. If set to "length" or "distance", the geometric length of each edge
+    #         is used as its weight. If set to any other value, the value associated with that key in each edge's dictionary is used as the
+    #         edge weight. Default is None.
+    #     normalize : bool , optional
+    #         If set to True, the values are normalized between 0 and 1. Default is False.
+    #     nxCompatible : bool , optional
+    #         If set to True, the values are compatible with those derived from NetworkX. Default is True.
+    #     useEdges : bool , optional
+    #         If set to True, the calculation uses the edges rather than the vertices. Default is False.
+    #     edgeKey : str , optional
+    #         If not None, the value associated with that key in each edge's dictionary is used to bundle the edges
+    #         into one entity for the calculation. Otherwise, each edge segment is assumed to be an independent
+    #         entity. Default is None.
+    #     key : str , optional
+    #         The desired dictionary key name under which to store the calculated value. Default is "closeness_centrality".
+    #     colorKey : str , optional
+    #         The desired dictionary key name under which to store the calculated color. Default is "cc_color"
+    #     colorScale : str , optional
+    #         The desired colorscale name to use for colors. The default is "viridis".
+    #     mantissa: int , optional
+    #         The desired length of the mantissa (number of digits after the decimal point). Default is 6.
+    #     tolerance : float , optional
+    #         The desired tolerance. Default is 0.0001.
+    #     silent : bool , optional
+    #         If set to True, error and warning messages are suppressed. Default is False.
+
+    #     Returns
+    #     -------
+    #     list
+    #         The list of centralities in the order matching the vertices or edges as requested.
+
+    #     """
+    #     from collections import deque
+    #     import math
+
+    #     from topologicpy.Topology import Topology
+    #     from topologicpy.Dictionary import Dictionary
+    #     from topologicpy.Color import Color
+    #     from topologicpy.Helper import Helper
+    #     from topologicpy.Vertex import Vertex
+    #     from topologicpy.Edge import Edge
+    #     # NOTE: We are inside Graph.*, so Graph.<...> methods are available.
+
+    #     # Validate graph
+    #     if not Topology.IsInstance(graph, "graph"):
+    #         if not silent:
+    #             print("Graph.ClosenessCentrality - Error: The input is not a valid Graph. Returning None.")
+    #         return None
+
+    #     vertices = Graph.Vertices(graph)
+    #     edges = Graph.Edges(graph)
+    #     # Give each edge a unique and stable id
+    #     edge_dicts = []
+    #     for i, e in enumerate(edges):
+    #         d = Topology.Dictionary(e)
+    #         d = Dictionary.SetValueAtKey(d, "u_edge_id", i)
+    #         edge_dicts.append(d)
+    #         e = Topology.SetDictionary(e, d)
+    #     n = len(vertices)
+    #     if n == 0:
+    #         if not silent:
+    #             print("Graph.ClosenessCentrality - Warning: Graph has no vertices. Returning [].")
+    #         return []
+
+    #     # Check for useEdges
+    #     if useEdges:
+    #         # Convert to a Line graph where edges become vertices
+    #         l_graph = Graph.LineGraph(graph, transferEdgeDictionaries=True)
+    #         # Check if user wants to bundle edges:
+    #         if edgeKey:
+    #             l_graph = Graph.Quotient(l_graph, key=edgeKey, groupLabelKey="label", transferDictionaries=True)
+    #         _ = Graph.ClosenessCentrality(l_graph,
+    #                                          weightKey = None,
+    #                                          normalize = normalize,
+    #                                          nxCompatible = normalize,
+    #                                          useEdges = False,
+    #                                          edgeKey = None,
+    #                                          key = key,
+    #                                          colorKey = colorKey,
+    #                                          colorScale = colorScale,
+    #                                          mantissa = mantissa,
+    #                                          tolerance = tolerance,
+    #                                          silent = silent)
+    #         l_verts = Graph.Vertices(l_graph)
+    #         vert_dicts = [Topology.Dictionary(v) for v in l_verts]
+    #         if edgeKey == None:
+    #             edgeKey = "u_edge_id"
+    #         final_dicts = Dictionary.BooleanDictionariesByKey(edge_dicts,
+    #                                    vert_dicts,
+    #                                    key=edgeKey,
+    #                                    exclusive = True,
+    #                                    operation="impose")
+    #         temp_centralities = []
+    #         for i, d in enumerate(final_dicts):
+    #             d = Dictionary.RemoveKey(d, "u_edge_id")
+    #             v = Dictionary.ValueAtKey(d, key)
+    #             temp_centralities.append(v)
+    #             e = Topology.SetDictionary(edges[i], d)
+    #         return temp_centralities
+    #     # Stable vertex key (prefer an 'id' in the vertex dictionary; else rounded coords)
+    #     def vkey(v, r=9):
+    #         d = Topology.Dictionary(v)
+    #         vid = Dictionary.ValueAtKey(d, "id")
+    #         if vid is not None:
+    #             return ("id", vid)
+    #         return ("xyz", round(Vertex.X(v), r), round(Vertex.Y(v), r), round(Vertex.Z(v), r))
+
+    #     idx_of = {vkey(v): i for i, v in enumerate(vertices)}
+
+    #     # Normalize weight key
+    #     distance_attr = None
+    #     if isinstance(weightKey, str) and weightKey:
+    #         wl = weightKey.lower()
+    #         if ("len" in wl) or ("dis" in wl):
+    #             weightKey = "length"
+    #         distance_attr = weightKey  # may be "length" or a custom key
+
+    #     # Build undirected adjacency with minimal weights per edge
+    #     # Use dict-of-dict to collapse multi-edges to minimal weight
+    #     adj = [dict() for _ in range(n)]  # adj[i][j] = weight
+    #     edges = Graph.Edges(graph)
+
+    #     def edge_weight(e):
+    #         if distance_attr == "length":
+    #             try:
+    #                 return float(Edge.Length(e))
+    #             except Exception:
+    #                 return 1.0
+    #         elif distance_attr:
+    #             try:
+    #                 d = Topology.Dictionary(e)
+    #                 w = Dictionary.ValueAtKey(d, distance_attr)
+    #                 return float(w) if (w is not None) else 1.0
+    #             except Exception:
+    #                 return 1.0
+    #         else:
+    #             return 1.0
+
+    #     for e in edges:
+    #         try:
+    #             u = Edge.StartVertex(e)
+    #             v = Edge.EndVertex(e)
+    #         except Exception:
+    #             # Fallback in odd cases
+    #             continue
+    #         iu = idx_of.get(vkey(u))
+    #         iv = idx_of.get(vkey(v))
+    #         if iu is None or iv is None or iu == iv:
+    #             continue
+    #         w = edge_weight(e)
+    #         # Keep minimal weight if duplicates
+    #         prev = adj[iu].get(iv)
+    #         if (prev is None) or (w < prev):
+    #             adj[iu][iv] = w
+    #             adj[iv][iu] = w
+
+    #     # Detect weighted vs unweighted
+    #     weighted = False
+    #     for i in range(n):
+    #         if any(abs(w - 1.0) > 1e-12 for w in adj[i].values()):
+    #             weighted = True
+    #             break
+
+    #     INF = float("inf")
+
+    #     # ---- shortest paths helpers ----
+    #     def bfs_sum(i):
+    #         """Sum of unweighted shortest path distances from i; returns (tot, reachable)."""
+    #         dist = [-1] * n
+    #         q = deque([i])
+    #         dist[i] = 0
+    #         reachable = 1
+    #         tot = 0
+    #         pop = q.popleft; push = q.append
+    #         while q:
+    #             u = pop()
+    #             du = dist[u]
+    #             for v in adj[u].keys():
+    #                 if dist[v] == -1:
+    #                     dist[v] = du + 1
+    #                     reachable += 1
+    #                     tot += dist[v]
+    #                     push(v)
+    #         return float(tot), reachable
+
+    #     def dijkstra_sum(i):
+    #         """Sum of weighted shortest path distances from i; returns (tot, reachable)."""
+    #         import heapq
+    #         dist = [INF] * n
+    #         dist[i] = 0.0
+    #         hq = [(0.0, i)]
+    #         push = heapq.heappush; pop = heapq.heappop
+    #         while hq:
+    #             du, u = pop(hq)
+    #             if du > dist[u]:
+    #                 continue
+    #             for v, w in adj[u].items():
+    #                 nd = du + w
+    #                 if nd < dist[v]:
+    #                     dist[v] = nd
+    #                     push(hq, (nd, v))
+    #         # Exclude self (0.0) and unreachable (INF)
+    #         reachable = 0
+    #         tot = 0.0
+    #         for d in dist:
+    #             if d < INF:
+    #                 reachable += 1
+    #                 tot += d
+    #         # subtract self-distance
+    #         tot -= 0.0
+    #         return float(tot), reachable
+
+    #     # SciPy acceleration if weighted and available
+    #     use_scipy = False
+    #     if weighted:
+    #         try:
+    #             import numpy as np
+    #             from scipy.sparse import csr_matrix
+    #             from scipy.sparse.csgraph import dijkstra as sp_dijkstra
+    #             use_scipy = True
+    #             # Build CSR once
+    #             rows, cols, data = [], [], []
+    #             for i in range(n):
+    #                 for j, w in adj[i].items():
+    #                     rows.append(i); cols.append(j); data.append(float(w))
+    #             if len(data) == 0:
+    #                 use_scipy = False  # empty graph; fall back
+    #             else:
+    #                 A = csr_matrix((np.array(data), (np.array(rows), np.array(cols))), shape=(n, n))
+    #         except Exception:
+    #             use_scipy = False
+
+    #     # ---- centrality computation ----
+    #     values = [0.0] * n
+    #     if n == 1:
+    #         values[0] = 0.0
+    #     else:
+    #         if not weighted:
+    #             for i in range(n):
+    #                 tot, reachable = bfs_sum(i)
+    #                 s = max(reachable - 1, 0)
+    #                 if tot > 0.0:
+    #                     if nxCompatible:
+    #                         # Wasserman–Faust improved scaling for disconnected graphs
+    #                         values[i] = (s / (n - 1)) * (s / tot)
+    #                     else:
+    #                         values[i] = s / tot
+    #                 else:
+    #                     values[i] = 0.0
+    #         else:
+    #             if use_scipy:
+    #                 # All-pairs from SciPy (fast)
+    #                 import numpy as np
+    #                 D = sp_dijkstra(A, directed=False, return_predecessors=False)
+    #                 for i in range(n):
+    #                     di = D[i]
+    #                     finite = di[np.isfinite(di)]
+    #                     # di includes self at 0; reachable count is len(finite)
+    #                     reachable = int(finite.size)
+    #                     s = max(reachable - 1, 0)
+    #                     tot = float(finite.sum())  # includes self=0
+    #                     if s > 0:
+    #                         if nxCompatible:
+    #                             values[i] = (s / (n - 1)) * (s / tot)
+    #                         else:
+    #                             values[i] = s / tot
+    #                     else:
+    #                         values[i] = 0.0
+    #             else:
+    #                 # Per-source Dijkstra
+    #                 for i in range(n):
+    #                     tot, reachable = dijkstra_sum(i)
+    #                     s = max(reachable - 1, 0)
+    #                     if tot > 0.0:
+    #                         if nxCompatible:
+    #                             values[i] = (s / (n - 1)) * (s / tot)
+    #                         else:
+    #                             values[i] = s / tot
+    #                     else:
+    #                         values[i] = 0.0
+
+    #     # Optional normalization, round once
+    #     out_vals = Helper.Normalize(values) if normalize else values
+    #     if mantissa is not None and mantissa >= 0:
+    #         out_vals = [round(v, mantissa) for v in out_vals]
+
+    #     # Color mapping range (use displayed numbers)
+    #     if out_vals:
+    #         min_v, max_v = min(out_vals), max(out_vals)
+    #     else:
+    #         min_v, max_v = 0.0, 1.0
+    #     if abs(max_v - min_v) < tolerance:
+    #         max_v = min_v + tolerance
+
+    #     # Annotate vertices
+    #     for i, value in enumerate(out_vals):
+    #         d = Topology.Dictionary(vertices[i])
+    #         color_hex = Color.AnyToHex(
+    #             Color.ByValueInRange(value, minValue=min_v, maxValue=max_v, colorScale=colorScale)
+    #         )
+    #         d = Dictionary.SetValuesAtKeys(d, [key, colorKey], [value, color_hex])
+    #         vertices[i] = Topology.SetDictionary(vertices[i], d)
+
+    #     return out_vals
 
 
     # @staticmethod
