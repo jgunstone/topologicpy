@@ -1,13 +1,9 @@
 import pytest
 
 
-@pytest.mark.skipif(
-    not pytest.importorskip("openstudio", reason="openstudio is not installed"),
-    reason="openstudio is not installed",
-)
 def test_set_energy_model_log_level():
-    # Not implemented yet
-    import openstudio
+    # Skip if openstudio is not installed
+    openstudio = pytest.importorskip("openstudio", reason="openstudio is not installed")
 
     try:
         openstudio.Logger.instance().standardOutLogger().setLogLevel(openstudio.Fatal)
