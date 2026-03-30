@@ -68,8 +68,6 @@ except:
     
 GraphQueueItem = namedtuple('GraphQueueItem', ['edges'])
 
-
-
 class WorkerProcessPool(object):
     """
     Create and manage a list of Worker processes. Each worker process
@@ -267,11 +265,7 @@ class _DrawTree(object):
         return self.__str__()
 
 class Graph:
-    # Registry of compiled routing graphs
-    # key: id(source_graph)
-    # value: compiled routing graph dict
-    _compiled_routing_registry = {}
-    
+
     @staticmethod
     def AccessibilityCentrality(graph, step: int = 2, normalize: bool = False, key: str = "accessibility_centrality", colorKey: str = "ac_color", colorScale: str = "viridis", mantissa: int = 6, tolerance: float = 0.0001, silent: bool = False):
         """
@@ -536,15 +530,6 @@ class Graph:
             return graph
 
         _ = graph.AddVertices([vertex], tolerance) # Hook to Core
-        # --------------------------------------------------
-        # Invalidate compiled routing graph (if any)
-        # --------------------------------------------------
-        try:
-            gid = id(graph)  # or id(self) if instance-style
-            if gid in Graph._compiled_routing_registry:
-                del Graph._compiled_routing_registry[gid]
-        except Exception:
-            pass
         return graph
 
     @staticmethod
@@ -585,15 +570,6 @@ class Graph:
                 print("Graph.AddVertices - Error: Could not find any valid vertices in the input list of vertices. Returning None.")
             return None
         _ = graph.AddVertices(vertices, tolerance) # Hook to Core
-        # --------------------------------------------------
-        # Invalidate compiled routing graph (if any)
-        # --------------------------------------------------
-        try:
-            gid = id(graph)  # or id(self) if instance-style
-            if gid in Graph._compiled_routing_registry:
-                del Graph._compiled_routing_registry[gid]
-        except Exception:
-            pass
         return graph
     
     def AdjacencyDictionary(graph, vertexLabelKey: str = None, edgeKey: str = "Length", includeWeights: bool = False, mantissa: int = 6):
@@ -8023,17 +7999,11 @@ class Graph:
             graph = Graph.AddEdge(graph, new_edge, transferVertexDictionaries=True, transferEdgeDictionaries=True, tolerance=tolerance)
         graph = Graph.RemoveVertex(graph,sv)
         graph = Graph.RemoveVertex(graph,ev)
-        # --------------------------------------------------
-        # Invalidate compiled routing graph (if any)
-        # --------------------------------------------------
-        try:
-            gid = id(graph)  # or id(self) if instance-style
-            if gid in Graph._compiled_routing_registry:
-                del Graph._compiled_routing_registry[gid]
-        except Exception:
-            pass
         return graph
     
+
+
+
     @staticmethod
     def ClosenessCentrality(
         graph,
@@ -8704,15 +8674,6 @@ class Graph:
             print("Graph.Connect - Error: The input lists verticesA and verticesB have different lengths. Returning None.")
             return None
         _ = graph.Connect(verticesA, verticesB, tolerance) # Hook to Core
-        # --------------------------------------------------
-        # Invalidate compiled routing graph (if any)
-        # --------------------------------------------------
-        try:
-            gid = id(graph)  # or id(self) if instance-style
-            if gid in Graph._compiled_routing_registry:
-                del Graph._compiled_routing_registry[gid]
-        except Exception:
-            pass
         return graph
     
     @staticmethod
@@ -9560,15 +9521,6 @@ class Graph:
         edges = Graph.Edges(graph, vertexList)
         for edge in edges:
             graph = Graph.RemoveEdge(graph, edge)
-        # --------------------------------------------------
-        # Invalidate compiled routing graph (if any)
-        # --------------------------------------------------
-        try:
-            gid = id(graph)  # or id(self) if instance-style
-            if gid in Graph._compiled_routing_registry:
-                del Graph._compiled_routing_registry[gid]
-        except Exception:
-            pass
         return graph
 
     @staticmethod
@@ -17231,15 +17183,6 @@ class Graph:
                 print("Graph.RemoveEdge - Error: The input edge is not a valid edge. Returning None.")
             return None
         _ = graph.RemoveEdges(edgeList, tolerance) # Hook to Core
-        # --------------------------------------------------
-        # Invalidate compiled routing graph (if any)
-        # --------------------------------------------------
-        try:
-            gid = id(graph)  # or id(self) if instance-style
-            if gid in Graph._compiled_routing_registry:
-                del Graph._compiled_routing_registry[gid]
-        except Exception:
-            pass
         return graph
     
     @staticmethod
@@ -17288,15 +17231,6 @@ class Graph:
                 va, vb = Edge.Vertices(edge)
                 if Graph.VertexDegree(graph, va, tolerance=tolerance, silent=silent) == 1 and Graph.VertexDegree(graph, vb, tolerance=tolerance, silent=silent) == 1:
                     graph = Graph.RemoveEdge(graph, edge, tolerance=tolerance, silent=silent)
-        # --------------------------------------------------
-        # Invalidate compiled routing graph (if any)
-        # --------------------------------------------------
-        try:
-            gid = id(graph)  # or id(self) if instance-style
-            if gid in Graph._compiled_routing_registry:
-                del Graph._compiled_routing_registry[gid]
-        except Exception:
-            pass
         return graph
 
     @staticmethod
@@ -17328,15 +17262,6 @@ class Graph:
         isolated_vertices = [v for v in vertices if Graph.VertexDegree(graph, v) == 0]
         if len(isolated_vertices) > 0:
             _ = graph.RemoveVertices(isolated_vertices) # Hook to Core
-        # --------------------------------------------------
-        # Invalidate compiled routing graph (if any)
-        # --------------------------------------------------
-        try:
-            gid = id(graph)  # or id(self) if instance-style
-            if gid in Graph._compiled_routing_registry:
-                del Graph._compiled_routing_registry[gid]
-        except Exception:
-            pass
         return graph
 
     @staticmethod
@@ -17373,15 +17298,6 @@ class Graph:
             return None
         vertexList = [Graph.NearestVertex(graph, v) for v in vertices]
         _ = graph.RemoveVertices(vertexList) # Hook to Core
-        # --------------------------------------------------
-        # Invalidate compiled routing graph (if any)
-        # --------------------------------------------------
-        try:
-            gid = id(graph)  # or id(self) if instance-style
-            if gid in Graph._compiled_routing_registry:
-                del Graph._compiled_routing_registry[gid]
-        except Exception:
-            pass
         return graph
 
     @staticmethod
@@ -17418,309 +17334,6 @@ class Graph:
             return graph
         _ = graph.SetDictionary(dictionary) # Hook to Core
         return graph
-    
-    @staticmethod
-    def CompiledRoutingGraph(
-        graph,
-        directed=None,
-        useKDTree: bool = False,
-        precomputeTurns: bool = False,
-        tolerance: float = 0.0001,
-        silent: bool = False,
-    ):
-        """
-        Returns a compiled routing graph object from the input graph.
-
-        Parameters
-        ----------
-        graph : topologic_core.Graph
-            The input graph.
-        directed : bool , optional
-            If set to True, edges are treated as directed. If set to False, edges are
-            treated as undirected. If set to None, the method attempts to read the
-            "directed" value from the graph dictionary. Default is None.
-        useKDTree : bool , optional
-            If set to True, attempts to build a KD-tree for nearest-vertex lookup.
-            Falls back to linear search if scipy is not available. Default is False.
-        precomputeTurns : bool , optional
-            If set to True, precomputes outgoing arc lists for turn-aware routing.
-            Default is False.
-        tolerance : float , optional
-            The desired tolerance. Default is 0.0001.
-        silent : bool , optional
-            If set to True, suppresses error and warning messages. Default is False.
-
-        Returns
-        -------
-        dict
-            A compiled routing graph object.
-        """
-        from topologicpy.Topology import Topology
-        from topologicpy.Graph import Graph
-        from topologicpy.Vertex import Vertex
-        from topologicpy.Edge import Edge
-        from topologicpy.Dictionary import Dictionary
-
-        import math
-
-        if not Topology.IsInstance(graph, "Graph"):
-            if not silent:
-                print("Graph.CompiledRoutingGraph - Error: The input graph is not a valid graph. Returning None.")
-            return None
-
-        vertices = Graph.Vertices(graph)
-        edges = Graph.Edges(graph)
-
-        if not isinstance(vertices, list) or len(vertices) < 2:
-            if not silent:
-                print("Graph.CompiledRoutingGraph - Error: Could not retrieve valid graph vertices. Returning None.")
-            return None
-        if not isinstance(edges, list) or len(edges) < 1:
-            if not silent:
-                print("Graph.CompiledRoutingGraph - Error: Could not retrieve valid graph edges. Returning None.")
-            return None
-
-        def _num_from_dict(topo, key: str, default: float = 0.0) -> float:
-            if not key:
-                return default
-            try:
-                d = Topology.Dictionary(topo)
-                if not d:
-                    return default
-                v = Dictionary.ValueAtKey(d, key)
-                if v is None:
-                    return default
-                if isinstance(v, bool):
-                    return float(int(v))
-                if isinstance(v, (int, float)):
-                    return float(v)
-                if isinstance(v, str):
-                    vv = v.strip()
-                    if vv == "":
-                        return default
-                    return float(vv)
-            except Exception:
-                return default
-            return default
-
-        def _edge_length(e, coords, ui, vi):
-            try:
-                return float(Edge.Length(e))
-            except Exception:
-                ax, ay, az = coords[ui]
-                bx, by, bz = coords[vi]
-                dx = bx - ax
-                dy = by - ay
-                dz = bz - az
-                return float(math.sqrt(dx*dx + dy*dy + dz*dz))
-
-        coords = []
-        key_to_index = {}
-        for i, v in enumerate(vertices):
-            try:
-                c = tuple(Vertex.Coordinates(v, mantissa=15))
-            except Exception:
-                if not silent:
-                    print("Graph.CompiledRoutingGraph - Error: Could not retrieve vertex coordinates. Returning None.")
-                return None
-            coords.append(c)
-            key_to_index[tuple(round(x, 9) for x in c)] = i
-
-        def _find_index(v):
-            try:
-                k = tuple(Vertex.Coordinates(v, mantissa=9))
-                i = key_to_index.get(tuple(round(x, 9) for x in k), None)
-                if i is not None:
-                    return i
-            except Exception:
-                pass
-
-            try:
-                vx, vy, vz = Vertex.Coordinates(v, mantissa=15)
-            except Exception:
-                return None
-
-            best_i = None
-            best_q = float("inf")
-            for j, (x, y, z) in enumerate(coords):
-                dx = x - vx
-                dy = y - vy
-                dz = z - vz
-                q = dx*dx + dy*dy + dz*dz
-                if q < best_q:
-                    best_q = q
-                    best_i = j
-
-            if best_i is None:
-                return None
-            if best_q > (tolerance * tolerance):
-                return None
-            return best_i
-
-        if directed is None:
-            try:
-                gd = Topology.Dictionary(graph)
-                val = Dictionary.ValueAtKey(gd, "directed") if gd else None
-                if isinstance(val, bool):
-                    directed = val
-                elif isinstance(val, (int, float)) and val in (0, 1):
-                    directed = bool(val)
-            except Exception:
-                directed = None
-        if directed is None:
-            directed = False
-
-        edge_u = []
-        edge_v = []
-        edge_len = []
-        fwd_adj = [[] for _ in range(len(vertices))]
-        undir_adj = [[] for _ in range(len(vertices))]
-
-        # Arc data for turn-aware routing
-        arc_u = []
-        arc_v = []
-        arc_edge = []
-        arc_dir = []
-        out_arcs_directed = [[] for _ in range(len(vertices))]
-        out_arcs_undirected = [[] for _ in range(len(vertices))]
-
-        for ei, e in enumerate(edges):
-            try:
-                sv = Edge.StartVertex(e)
-                ev = Edge.EndVertex(e)
-            except Exception:
-                edge_u.append(None)
-                edge_v.append(None)
-                edge_len.append(0.0)
-                continue
-
-            ui = _find_index(sv)
-            vi = _find_index(ev)
-
-            if ui is None or vi is None:
-                edge_u.append(None)
-                edge_v.append(None)
-                edge_len.append(0.0)
-                continue
-
-            edge_u.append(ui)
-            edge_v.append(vi)
-            elen = _edge_length(e, coords, ui, vi)
-            edge_len.append(elen)
-
-            ax, ay, az = coords[ui]
-            bx, by, bz = coords[vi]
-            d_uv = (bx - ax, by - ay, bz - az)
-            d_vu = (ax - bx, ay - by, az - bz)
-
-            fwd_adj[ui].append((vi, ei))
-            undir_adj[ui].append((vi, ei))
-            undir_adj[vi].append((ui, ei))
-
-            # directed arc ui -> vi
-            aidx = len(arc_u)
-            arc_u.append(ui)
-            arc_v.append(vi)
-            arc_edge.append(ei)
-            arc_dir.append(d_uv)
-            out_arcs_directed[ui].append(aidx)
-            out_arcs_undirected[ui].append(aidx)
-
-            # reverse arc vi -> ui
-            aidx = len(arc_u)
-            arc_u.append(vi)
-            arc_v.append(ui)
-            arc_edge.append(ei)
-            arc_dir.append(d_vu)
-            out_arcs_undirected[vi].append(aidx)
-
-        kd_tree = None
-        kd_points = None
-        if useKDTree:
-            try:
-                from scipy.spatial import cKDTree
-                kd_points = coords
-                kd_tree = cKDTree(coords)
-            except Exception:
-                kd_tree = None
-                kd_points = None
-
-        compiled = {
-            "__type__": "CompiledRoutingGraph",
-            "graph": graph,
-            "vertices": vertices,
-            "edges": edges,
-            "coords": coords,
-            "key_to_index": key_to_index,
-            "directed": bool(directed),
-            "graph_dict": Topology.Dictionary(graph) if Topology.IsInstance(graph, "Graph") else None,
-            "edge_u": edge_u,
-            "edge_v": edge_v,
-            "edge_len": edge_len,
-            "fwd_adj": fwd_adj,
-            "undir_adj": undir_adj,
-            "arc_u": arc_u,
-            "arc_v": arc_v,
-            "arc_edge": arc_edge,
-            "arc_dir": arc_dir,
-            "out_arcs_directed": out_arcs_directed,
-            "out_arcs_undirected": out_arcs_undirected,
-            "useKDTree": bool(useKDTree),
-            "kd_tree": kd_tree,
-            "kd_points": kd_points,
-            "precomputeTurns": bool(precomputeTurns),
-            "vertex_numeric_cache": {},
-            "edge_numeric_cache": {},
-            "turn_numeric_cache": {},
-            "tolerance": tolerance,
-        }
-        # Register compiled routing graph
-        try:
-            Graph._compiled_routing_registry[id(graph)] = compiled
-        except Exception:
-            pass
-        return compiled
-
-
-    @staticmethod
-    def IsCompiledRoutingGraph(obj):
-        """
-        Returns True if the input object is a compiled routing graph. Returns False otherwise.
-
-        Parameters
-        ----------
-        obj : any
-            The input object.
-
-        Returns
-        -------
-        bool
-            True if the input object is a compiled routing graph. False otherwise.
-        """
-        if not isinstance(obj, dict):
-            return False
-        if obj.get("__type__", None) != "CompiledRoutingGraph":
-            return False
-        required_keys = [
-            "graph",
-            "vertices",
-            "edges",
-            "coords",
-            "edge_u",
-            "edge_v",
-            "edge_len",
-            "fwd_adj",
-            "undir_adj",
-            "arc_u",
-            "arc_v",
-            "arc_edge",
-            "arc_dir",
-        ]
-        for k in required_keys:
-            if not k in obj:
-                return False
-        return True
-
 
     @staticmethod
     def ShortestPath(
@@ -17830,57 +17443,25 @@ class Graph:
             - returnEdges=True     -> returns (wire, path_edge_index_pairs)
             - both True            -> returns (wire, path_vertex_indices, path_edge_index_pairs)
         """
+
         from topologicpy.Topology import Topology
         from topologicpy.Graph import Graph
         from topologicpy.Vertex import Vertex
         from topologicpy.Edge import Edge
         from topologicpy.Wire import Wire
         from topologicpy.Dictionary import Dictionary
+        from topologicpy.Vector import Vector
 
         import heapq
         import math
 
         # --------------------------------------------------
-        # Validation and compilation
+        # Validation
         # --------------------------------------------------
-        is_compiled = Graph.IsCompiledRoutingGraph(graph)
-
-        if is_compiled:
-            compiled = graph
-            source_graph = compiled["graph"]
-        else:
-            if not Topology.IsInstance(graph, "Graph"):
-                if not silent:
-                    print("Graph.ShortestPath - Error: The input graph is not a valid graph. Returning None.")
-                return None
-
-            source_graph = graph
-            gid = id(graph)
-
-            compiled = None
-            try:
-                if hasattr(Graph, "_compiled_routing_registry"):
-                    compiled = Graph._compiled_routing_registry.get(gid, None)
-                    if compiled is not None:
-                        if not Graph.IsCompiledRoutingGraph(compiled):
-                            compiled = None
-                        elif compiled.get("graph", None) is not graph:
-                            compiled = None
-            except Exception:
-                compiled = None
-
-            if compiled is None:
-                compiled = Graph.CompiledRoutingGraph(
-                    graph=graph,
-                    directed=directed,
-                    useKDTree=False,
-                    precomputeTurns=True,
-                    tolerance=tolerance,
-                    silent=silent,
-                )
-                if compiled is None:
-                    return None
-
+        if not Topology.IsInstance(graph, "Graph"):
+            if not silent:
+                print("Graph.ShortestPath - Error: The input graph is not a valid graph. Returning None.")
+            return None
         if not Topology.IsInstance(vertexA, "Vertex"):
             if not silent:
                 print("Graph.ShortestPath - Error: The input vertexA is not a valid vertex. Returning None.")
@@ -17889,21 +17470,10 @@ class Graph:
             if not silent:
                 print("Graph.ShortestPath - Error: The input vertexB is not a valid vertex. Returning None.")
             return None
-
         if isinstance(edgeKey, str) and edgeKey.lower() == "length":
             edgeKey = "Length"
 
-        try:
-            heuristicScale = max(0.0, min(1.0, float(heuristicScale)))
-        except Exception:
-            heuristicScale = 1.0
-
-        vertices = compiled["vertices"]
-        edges = compiled["edges"]
-        coords = compiled["coords"]
-
-        if not vertices or not edges:
-            return None
+        heuristicScale = max(0.0, min(1.0, float(heuristicScale)))
 
         # --------------------------------------------------
         # Helpers
@@ -17931,209 +17501,237 @@ class Graph:
                 return default
             return default
 
-        def _spread_from_dirs(d1, d2):
-            x1, y1, z1 = d1
-            x2, y2, z2 = d2
-            n1 = math.sqrt(x1*x1 + y1*y1 + z1*z1)
-            n2 = math.sqrt(x2*x2 + y2*y2 + z2*z2)
-            if n1 <= 0.0 or n2 <= 0.0:
-                return 0.0
-            c = (x1*x2 + y1*y2 + z1*z2) / (n1 * n2)
-            if c < -1.0:
-                c = -1.0
-            elif c > 1.0:
-                c = 1.0
-            return math.acos(c) / math.pi
-
-        def _nearest_index(v, enforceTolerance: bool = True):
-            # exact rounded coordinate match
+        def _edge_length(e) -> float:
             try:
-                k = tuple(Vertex.Coordinates(v, mantissa=9))
-                i = compiled["key_to_index"].get(tuple(round(x, 9) for x in k), None)
-                if i is not None:
-                    return i
+                return float(Edge.Length(e))
             except Exception:
-                pass
+                sv, ev = Edge.StartVertex(e), Edge.EndVertex(e)
+                ax, ay, az = Vertex.Coordinates(sv, mantissa=15)
+                bx, by, bz = Vertex.Coordinates(ev, mantissa=15)
+                dx, dy, dz = bx - ax, by - ay, bz - az
+                return float(math.sqrt(dx * dx + dy * dy + dz * dz))
 
-            # KD tree if available
-            try:
-                if compiled.get("kd_tree", None) is not None:
-                    vx, vy, vz = Vertex.Coordinates(v, mantissa=15)
-                    d, i = compiled["kd_tree"].query([vx, vy, vz], k=1)
-                    if (not enforceTolerance) or (d <= tolerance):
-                        return int(i)
-            except Exception:
-                pass
+        # --------------------------------------------------
+        # Extract graph vertices/edges
+        # --------------------------------------------------
+        vertices = Graph.Vertices(graph)
+        edges = Graph.Edges(graph)
+        if not vertices or not edges:
+            return None
 
-            # linear fallback
-            try:
-                vx, vy, vz = Vertex.Coordinates(v, mantissa=15)
-            except Exception:
-                return None
+        coords = [Vertex.Coordinates(v, mantissa=15) for v in vertices]
 
+        # --------------------------------------------------
+        # Robust indexing (no object identity dependency)
+        # --------------------------------------------------
+        def _vkey(v, m=9):
+            return tuple(Vertex.Coordinates(v, mantissa=m))
+
+        key_to_index = {}
+        for i, v in enumerate(vertices):
+            key_to_index[_vkey(v, m=9)] = i
+
+        def _find_index(v):
+            # 1) exact (rounded) coordinate match
+            k = _vkey(v, m=9)
+            i = key_to_index.get(k, None)
+            if i is not None:
+                return i
+
+            # 2) nearest fallback by quadrance (used only for endpoints or stray vertices)
+            vx, vy, vz = Vertex.Coordinates(v, mantissa=15)
             best_i = None
             best_q = float("inf")
             for j, (x, y, z) in enumerate(coords):
-                dx = x - vx
-                dy = y - vy
-                dz = z - vz
-                q = dx*dx + dy*dy + dz*dz
+                dx, dy, dz = x - vx, y - vy, z - vz
+                q = dx * dx + dy * dy + dz * dz
                 if q < best_q:
                     best_q = q
                     best_i = j
 
             if best_i is None:
                 return None
-            if enforceTolerance and best_q > (tolerance * tolerance):
+
+            # Guard against snapping to an unrelated vertex in dense graphs
+            if best_q > (tolerance * tolerance):
                 return None
             return best_i
 
-        def _heuristic(i: int, t_idx: int, enabled: bool) -> float:
-            if not enabled:
-                return 0.0
-            ax, ay, az = coords[i]
-            bx, by, bz = coords[t_idx]
-            dx = bx - ax
-            dy = by - ay
-            dz = bz - az
-            return heuristicScale * math.sqrt(dx * dx + dy * dy + dz * dz)
-
-        def _effective_directed():
-            if directed is None:
-                try:
-                    gd = compiled.get("graph_dict", None)
-                    val = Dictionary.ValueAtKey(gd, "directed") if gd else None
-                    if isinstance(val, bool):
-                        return bool(val)
-                    elif isinstance(val, (int, float)) and val in (0, 1):
-                        return bool(val)
-                except Exception:
-                    pass
-                return bool(compiled.get("directed", False))
-            return bool(directed)
-
-        def _allowed_vertices(s_idx, t_idx):
-            allowed = [True] * len(vertices)
-            if callable(vertexFilter):
-                for i, v in enumerate(vertices):
-                    if i in (s_idx, t_idx):
-                        allowed[i] = True
-                        continue
-                    try:
-                        allowed[i] = bool(vertexFilter(v))
-                    except Exception:
-                        allowed[i] = True
-            allowed[s_idx] = True
-            allowed[t_idx] = True
-            return allowed
-
-        def _allowed_edges():
-            allowed = [True] * len(edges)
-            if callable(edgeFilter):
-                for i, e in enumerate(edges):
-                    try:
-                        allowed[i] = bool(edgeFilter(e))
-                    except Exception:
-                        allowed[i] = True
-            return allowed
-
-        def _vertex_costs(s_idx):
-            n = len(vertices)
-            out = [0.0] * n
-
-            if callable(vertexCostFunc):
-                for i, v in enumerate(vertices):
-                    try:
-                        out[i] = float(vertexCostFunc(v))
-                    except Exception:
-                        out[i] = 0.0
-            elif vertexKey:
-                vc = compiled["vertex_numeric_cache"].get(vertexKey, None)
-                if vc is None:
-                    vc = [_num_from_dict(v, vertexKey, default=0.0) for v in vertices]
-                    compiled["vertex_numeric_cache"][vertexKey] = vc
-                out = list(vc)
-
-            if 0 <= s_idx < n:
-                out[s_idx] = 0.0
-            return out
-
-        def _turn_multipliers():
-            if not turnKey:
-                return [1.0] * len(vertices)
-            vc = compiled["turn_numeric_cache"].get(turnKey, None)
-            if vc is None:
-                vc = [_num_from_dict(v, turnKey, default=1.0) for v in vertices]
-                compiled["turn_numeric_cache"][turnKey] = vc
-            return vc
-
-        def _edge_costs():
-            if callable(edgeCostFunc):
-                out = []
-                for e in edges:
-                    try:
-                        out.append(float(edgeCostFunc(e)))
-                    except Exception:
-                        out.append(0.0)
-                return out
-
-            if edgeKey == "Length" or not edgeKey:
-                return list(compiled["edge_len"])
-
-            ec = compiled["edge_numeric_cache"].get(edgeKey, None)
-            if ec is None:
-                ec = [_num_from_dict(e, edgeKey, default=0.0) for e in edges]
-                compiled["edge_numeric_cache"][edgeKey] = ec
-            return list(ec)
-
-        # --------------------------------------------------
-        # Snap endpoints using the source graph first
-        # --------------------------------------------------
+        # Snap endpoints to nearest graph vertices (existing behavior)
         try:
-            start_v = Graph.NearestVertex(source_graph, vertexA)
-            goal_v = Graph.NearestVertex(source_graph, vertexB)
+            start_v = Graph.NearestVertex(graph, vertexA)
+            goal_v = Graph.NearestVertex(graph, vertexB)
         except Exception:
             if not silent:
                 print("Graph.ShortestPath - Error: Could not find nearest vertices. Returning None.")
             return None
 
-        s_idx = _nearest_index(start_v, enforceTolerance=False)
-        t_idx = _nearest_index(goal_v, enforceTolerance=False)
-
+        s_idx = _find_index(start_v)
+        t_idx = _find_index(goal_v)
         if s_idx is None or t_idx is None:
             if not silent:
                 print("Graph.ShortestPath - Error: Could not locate start/end vertices in graph. Returning None.")
             return None
 
         if s_idx == t_idx:
+            # Start and end are the same after snapping
             return None
 
-        directed_flag = _effective_directed()
-        allowed_vertex = _allowed_vertices(s_idx, t_idx)
-        allowed_edge = _allowed_edges()
-        v_cost = _vertex_costs(s_idx)
-        e_cost = _edge_costs()
+        # --------------------------------------------------
+        # Directed setting (if not explicitly provided)
+        # --------------------------------------------------
+        if directed is None:
+            try:
+                gd = Topology.Dictionary(graph)
+                val = Dictionary.ValueAtKey(gd, "directed") if gd else None
+                if isinstance(val, bool):
+                    directed = val
+                elif isinstance(val, (int, float)) and val in (0, 1):
+                    directed = bool(val)
+            except Exception:
+                pass
+        if directed is None:
+            directed = False
 
+        # --------------------------------------------------
+        # Vertex filter (applied as hard constraints)
+        # --------------------------------------------------
+        allowed_vertex = [True] * len(vertices)
+        if callable(vertexFilter):
+            for i, v in enumerate(vertices):
+                if i in (s_idx, t_idx):
+                    continue  # always allow endpoints
+                try:
+                    allowed_vertex[i] = bool(vertexFilter(v))
+                except Exception:
+                    allowed_vertex[i] = True
+
+        allowed_vertex[s_idx] = True
+        allowed_vertex[t_idx] = True
+
+        # --------------------------------------------------
+        # Vertex costs
+        # --------------------------------------------------
+        v_cost = [0.0] * len(vertices)
+        if callable(vertexCostFunc):
+            for i, v in enumerate(vertices):
+                try:
+                    v_cost[i] = float(vertexCostFunc(v))
+                except Exception:
+                    v_cost[i] = 0.0
+        elif vertexKey:
+            for i, v in enumerate(vertices):
+                v_cost[i] = _num_from_dict(v, vertexKey, default=0.0)
+
+        # Conventional: do not charge the start vertex
+        v_cost[s_idx] = 0.0
+
+        def _turn_multiplier_at_vertex(i: int) -> float:
+            if not turnKey:
+                return 1.0
+            return _num_from_dict(vertices[i], turnKey, default=1.0)
+
+        # --------------------------------------------------
+        # Build adjacency with arc bookkeeping
+        #   arc_* arrays store traversal arcs, each referencing an ORIGINAL graph edge.
+        # --------------------------------------------------
+        adj = [[] for _ in range(len(vertices))]  # adj[u] = list of (v, arc_index)
+
+        arc_u = []
+        arc_v = []
+        arc_dir = []    # direction vector for traversal u->v
+        arc_w = []      # traversal cost
+        arc_edge = []   # ORIGINAL graph edge object used for traversal u->v
+
+        for e in edges:
+            # Edge-level filter
+            if callable(edgeFilter):
+                try:
+                    if not bool(edgeFilter(e)):
+                        continue
+                except Exception:
+                    pass
+
+            sv, ev = Edge.StartVertex(e), Edge.EndVertex(e)
+            ui, vi = _find_index(sv), _find_index(ev)
+            if ui is None or vi is None:
+                continue
+
+            # Vertex-level hard constraint
+            if not allowed_vertex[ui] or not allowed_vertex[vi]:
+                continue
+
+            # Determine edge traversal cost
+            if callable(edgeCostFunc):
+                try:
+                    w = float(edgeCostFunc(e))
+                except Exception:
+                    w = 0.0
+            else:
+                if edgeKey == "Length":
+                    w = _edge_length(e)
+                elif edgeKey:
+                    w = _num_from_dict(e, edgeKey, default=0.0)
+                else:
+                    w = _edge_length(e)
+
+            ax, ay, az = coords[ui]
+            bx, by, bz = coords[vi]
+
+            # forward arc ui->vi uses ORIGINAL edge e
+            ai = len(arc_u)
+            arc_u.append(ui)
+            arc_v.append(vi)
+            arc_dir.append([bx - ax, by - ay, bz - az])
+            arc_w.append(w)
+            arc_edge.append(e)
+            adj[ui].append((vi, ai))
+
+            if not directed:
+                # reverse arc vi->ui still references ORIGINAL edge e (traversed opposite)
+                aj = len(arc_u)
+                arc_u.append(vi)
+                arc_v.append(ui)
+                arc_dir.append([ax - bx, ay - by, az - bz])
+                arc_w.append(w)
+                arc_edge.append(e)
+                adj[vi].append((ui, aj))
+
+        # --------------------------------------------------
+        # Heuristic (A*) - only admissible when using geometric length costs and no custom funcs
+        # --------------------------------------------------
+        def _heuristic(i: int) -> float:
+            if not useAStar:
+                return 0.0
+            ax, ay, az = coords[i]
+            bx, by, bz = coords[t_idx]
+            dx, dy, dz = bx - ax, by - ay, bz - az
+            return heuristicScale * math.sqrt(dx * dx + dy * dy + dz * dz)
+
+        if useAStar:
+            if callable(edgeCostFunc) or (edgeKey != "Length") or callable(turnCostFunc) or (turnWeight != 0.0) or bool(turnKey):
+                # Conservative: disable A* if costs are not purely geometric / consistent.
+                useAStar = False
+
+        # --------------------------------------------------
+        # Dijkstra / (optionally A*) with optional turn costs
+        # --------------------------------------------------
         use_turn = (turnWeight != 0.0) or callable(turnCostFunc) or bool(turnKey)
+        INF = float("inf")
 
-        can_use_astar = bool(useAStar)
-        if can_use_astar:
-            if callable(edgeCostFunc) or (edgeKey != "Length") or callable(turnCostFunc) or use_turn:
-                can_use_astar = False
+        path_idx = None
+        path_arcs = None  # ordered arc indices along the path, length = len(path_idx)-1
 
-        # --------------------------------------------------
-        # Engine 1: Fast path (Dijkstra / A*)
-        # --------------------------------------------------
         if not use_turn:
-            adj = compiled["fwd_adj"] if directed_flag else compiled["undir_adj"]
-
-            INF = float("inf")
+            # ----------------------------
+            # Standard Dijkstra / A* on vertices
+            # ----------------------------
             dist = [INF] * len(vertices)
             prev_v = [None] * len(vertices)
-            prev_e = [None] * len(vertices)
+            prev_arc = [None] * len(vertices)
 
             dist[s_idx] = 0.0
-            pq = [(0.0 + _heuristic(s_idx, t_idx, can_use_astar), 0.0, s_idx)]  # (f, g, u)
+            pq = [(0.0 + _heuristic(s_idx), 0.0, s_idx)]  # (f, g, u)
 
             while pq:
                 f, g, u = heapq.heappop(pq)
@@ -18142,135 +17740,134 @@ class Graph:
                 if u == t_idx:
                     break
 
-                for v, ei in adj[u]:
-                    if ei is None:
-                        continue
-                    if not allowed_edge[ei]:
-                        continue
-                    if not allowed_vertex[v]:
-                        continue
-
-                    ng = g + e_cost[ei] + v_cost[v]
+                for v, aidx in adj[u]:
+                    ng = g + arc_w[aidx] + v_cost[v]
                     if ng < dist[v]:
                         dist[v] = ng
                         prev_v[v] = u
-                        prev_e[v] = ei
-                        heapq.heappush(pq, (ng + _heuristic(v, t_idx, can_use_astar), ng, v))
+                        prev_arc[v] = aidx
+                        heapq.heappush(pq, (ng + _heuristic(v), ng, v))
 
             if dist[t_idx] == INF:
                 return None
 
-            path_idx = []
-            path_edge_indices = []
+            # Reconstruct vertex indices and arcs
+            idx_rev = []
+            arc_rev = []
             cur = t_idx
             while cur is not None:
-                path_idx.append(cur)
-                ei = prev_e[cur]
-                if ei is not None:
-                    path_edge_indices.append(ei)
+                idx_rev.append(cur)
+                a = prev_arc[cur]
+                if a is not None:
+                    arc_rev.append(a)
                 cur = prev_v[cur]
-            path_idx.reverse()
-            path_edge_indices.reverse()
 
-        # --------------------------------------------------
-        # Engine 2: Turn-aware path
-        # --------------------------------------------------
+            idx_rev.reverse()
+            arc_rev.reverse()
+
+            path_idx = idx_rev
+            path_arcs = arc_rev
+
         else:
-            out_arcs = compiled["out_arcs_directed"] if directed_flag else compiled["out_arcs_undirected"]
-            arc_u = compiled["arc_u"]
-            arc_v = compiled["arc_v"]
-            arc_edge = compiled["arc_edge"]
-            arc_dir = compiled["arc_dir"]
+            # ----------------------------
+            # Turn-cost routing on states (prev_vertex, curr_vertex)
+            # incoming arc is stored per state so we can compute spread into outgoing arc
+            # ----------------------------
+            start_state = (-1, s_idx)
 
-            turn_mult = _turn_multipliers()
+            dist_state = {start_state: 0.0}
+            prev_state = {}         # state -> previous state
+            in_arc_state = {start_state: None}  # state -> incoming arc index
 
-            def _arc_allowed(aidx):
-                try:
-                    ei = arc_edge[aidx]
-                    u = arc_u[aidx]
-                    v = arc_v[aidx]
-                except Exception:
-                    return False
-                if ei is None or u is None or v is None:
-                    return False
-                if not allowed_edge[ei]:
-                    return False
-                if not allowed_vertex[u] or not allowed_vertex[v]:
-                    return False
-                return True
-
-            INF = float("inf")
-            m = len(arc_u)
-            dist = [INF] * m
-            prev_arc = [None] * m
-            pq = []
-
-            # initialize from start vertex
-            for a in out_arcs[s_idx]:
-                if not _arc_allowed(a):
-                    continue
-                v = arc_v[a]
-                g = e_cost[arc_edge[a]] + v_cost[v]
-                if g < dist[a]:
-                    dist[a] = g
-                    heapq.heappush(pq, (g, g, a))
-
-            goal_arc = None
+            pq = [(0.0 + _heuristic(s_idx), 0.0, start_state)]  # (f, g, state)
+            goal_state = None
 
             while pq:
-                f, g, a = heapq.heappop(pq)
-                if g != dist[a]:
+                f, g, state = heapq.heappop(pq)
+                if dist_state.get(state, INF) != g:
                     continue
 
-                mid = arc_v[a]
-                prev_vertex = arc_u[a]
-
-                if mid == t_idx:
-                    goal_arc = a
+                p, u = state
+                if u == t_idx:
+                    goal_state = state
                     break
 
-                for b in out_arcs[mid]:
-                    if not _arc_allowed(b):
-                        continue
+                in_arc = in_arc_state.get(state, None)
 
-                    nxt = arc_v[b]
-                    ng = g + e_cost[arc_edge[b]] + v_cost[nxt]
+                for v, out_arc in adj[u]:
+                    ng = g + arc_w[out_arc] + v_cost[v]
 
-                    s = _spread_from_dirs(arc_dir[a], arc_dir[b])
+                    if in_arc is not None:
+                        s = Vector.Spread(arc_dir[in_arc], arc_dir[out_arc], mantissa=15, bracket=False)
 
-                    if callable(turnCostFunc):
-                        try:
-                            ng += float(turnCostFunc(prev_vertex, mid, nxt, a, b, s))
-                        except Exception:
-                            pass
-                    else:
-                        mult = turn_mult[mid]
-                        try:
-                            ts = (s ** turnPower) if turnPower != 1.0 else s
-                        except Exception:
-                            ts = s
-                        ng += float(turnWeight) * float(mult) * float(ts)
+                        if callable(turnCostFunc):
+                            try:
+                                ng += float(turnCostFunc(p, u, v, in_arc, out_arc, s))
+                            except Exception:
+                                pass
+                        else:
+                            mult = _turn_multiplier_at_vertex(u)
+                            try:
+                                ts = (s ** turnPower) if turnPower != 1.0 else s
+                            except Exception:
+                                ts = s
+                            ng += float(turnWeight) * float(mult) * float(ts)
 
-                    if ng < dist[b]:
-                        dist[b] = ng
-                        prev_arc[b] = a
-                        heapq.heappush(pq, (ng, ng, b))
+                    next_state = (u, v)
+                    if ng < dist_state.get(next_state, INF):
+                        dist_state[next_state] = ng
+                        prev_state[next_state] = state
+                        in_arc_state[next_state] = out_arc
+                        heapq.heappush(pq, (ng + _heuristic(v), ng, next_state))
 
-            if goal_arc is None:
+            if goal_state is None:
                 return None
 
-            arc_path = []
-            cur = goal_arc
-            while cur is not None:
-                arc_path.append(cur)
-                cur = prev_arc[cur]
-            arc_path.reverse()
+            # Reconstruct vertices + arcs by walking states back.
+            # Each non-start state has an incoming arc stored in in_arc_state.
+            states = []
+            st = goal_state
+            while True:
+                states.append(st)
+                if st == start_state:
+                    break
+                st = prev_state.get(st, None)
+                if st is None:
+                    break
+            states.reverse()
 
-            path_idx = [s_idx]
-            path_edge_indices = []
-            for a in arc_path:
-                path_idx.append(arc_v[a])
-                path_edge_indices.append(arc_edge[a])
+            # states: [(-1,s), (s,v1), (v1,v2), ... , (vk-1,t)]
+            # vertices: [s, v1, v2, ... , t]
+            # arcs:     incoming arcs of states[1:], in order
+            verts = [states[0][1]]
+            arcs = []
+            for i in range(1, len(states)):
+                verts.append(states[i][1])
+                arcs.append(in_arc_state.get(states[i], None))
+
+            # Clean adjacent duplicates (defensive)
+            cleaned_verts = []
+            cleaned_arcs = []
+            for i, vi in enumerate(verts):
+                if not cleaned_verts or cleaned_verts[-1] != vi:
+                    cleaned_verts.append(vi)
+                    if i > 0:
+                        cleaned_arcs.append(arcs[i - 1])
+                else:
+                    # duplicate vertex; drop corresponding arc as well
+                    pass
+
+            # Remove any None arcs (should not happen except pathological backtracking)
+            final_arcs = []
+            for a in cleaned_arcs:
+                if a is not None:
+                    final_arcs.append(a)
+
+            if len(cleaned_verts) < 2 or len(final_arcs) != (len(cleaned_verts) - 1):
+                return None
+
+            path_idx = cleaned_verts
+            path_arcs = final_arcs
 
         if not path_idx or len(path_idx) < 2:
             return None
@@ -18278,10 +17875,18 @@ class Graph:
         # --------------------------------------------------
         # Build output using ORIGINAL graph entities
         # --------------------------------------------------
-        out_edges = [edges[ei] for ei in path_edge_indices if ei is not None]
-        if len(out_edges) < 1:
-            return None
+        out_vertices = [vertices[i] for i in path_idx]
 
+        # Ordered ORIGINAL edges along the path (may include same edge object multiple times in undirected traversal)
+        out_edges = []
+        edge_index_pairs = []
+        for aidx in path_arcs:
+            u = arc_u[aidx]
+            v = arc_v[aidx]
+            out_edges.append(arc_edge[aidx])
+            edge_index_pairs.append((u, v))
+
+        # Build wire from ORIGINAL edges
         wire = Wire.ByEdges(out_edges)
         if wire is None:
             return None
@@ -18289,596 +17894,29 @@ class Graph:
         # --------------------------------------------------
         # Returns
         # --------------------------------------------------
+        if returnEdges:
+            m_data = Graph.MeshData(graph)
+            m_edges = m_data['edges']
+            r_e_list = []
+            for i_p in edge_index_pairs:
+                e_i = None
+                try:
+                    e_i = m_edges.index([i_p[0], i_p[1]])
+                except:
+                    try:
+                        e_i = m_edges.index(i_p[1], i_p[0])
+                    except:
+                        pass
+                if not e_i == None:
+                    r_e_list.append(e_i)            
+
         if returnVertices and returnEdges:
-            return wire, list(path_idx), list(path_edge_indices)
+            return wire, list(path_idx), r_e_list
         if returnVertices:
             return wire, list(path_idx)
         if returnEdges:
-            return wire, list(path_edge_indices)
+            return wire, r_e_list
         return wire
-
-    # @staticmethod
-    # def ShortestPath(
-    #     graph,
-    #     vertexA,
-    #     vertexB,
-    #     vertexKey: str = "",
-    #     edgeKey: str = "Length",
-    #     turnWeight: float = 0.0,
-    #     turnPower: float = 1.0,
-    #     turnKey: str = "",
-    #     directed: bool = False,
-    #     edgeFilter: callable = None,
-    #     vertexFilter: callable = None,
-    #     edgeCostFunc: callable = None,
-    #     vertexCostFunc: callable = None,
-    #     turnCostFunc: callable = None,
-    #     useAStar: bool = False,
-    #     heuristicScale: float = 1.0,
-    #     returnVertices: bool = False,
-    #     returnEdges: bool = False,
-    #     tolerance: float = 0.0001,
-    #     silent: bool = False,
-    # ):
-    #     """
-    #     Returns the shortest path (as a Wire) between two vertices in a Graph using a
-    #     pure-Python, feature-rich routing algorithm.
-
-    #     The path cost is computed as a weighted sum of:
-    #     - edge traversal cost (edgeKey or geometric length),
-    #     - optional vertex visitation cost (vertexKey),
-    #     - optional turn/transition cost between consecutive edges (Spread-based).
-
-    #     This method is backward compatible with the original TopologicPy API, but
-    #     extends it with advanced routing features such as turn penalties, custom
-    #     filters, and A* search, all without relying on the C++ core.
-
-    #     Parameters
-    #     ----------
-    #     graph : topologic_core.Graph
-    #         The input graph on which routing is performed.
-    #     vertexA : topologic_core.Vertex
-    #         The start vertex. It is snapped to the nearest vertex in the graph.
-    #     vertexB : topologic_core.Vertex
-    #         The end vertex. It is snapped to the nearest vertex in the graph.
-    #     vertexKey : str, optional
-    #         Name of a numeric key in each vertex dictionary whose value is added
-    #         to the path cost when that vertex is entered. Higher values make routes
-    #         avoid those vertices. If empty, no vertex cost is applied.
-    #     edgeKey : str, optional
-    #         Name of a numeric key in each edge dictionary used as the edge traversal
-    #         cost. If set to "Length" (case-insensitive), geometric edge length is used.
-    #         This is the primary contributor to path length.
-    #     transferDictionaries : bool, optional
-    #         If True, dictionaries from the graph vertices are copied onto the vertices
-    #         of the returned path. This does not affect routing, only the output data.
-    #     turnWeight : float, optional
-    #         Controls how strongly turning is penalised relative to edge length.
-    #         A value of 0 disables turn cost. Larger values favour straighter routes
-    #         even if they are longer. Default is 1.
-    #     turnPower : float, optional
-    #         Controls how sharply turn penalties increase with turn severity.
-    #         Values greater than 1 strongly penalise right-angle turns while allowing
-    #         gentle bends. Default is 2.
-    #     turnKey : str, optional
-    #         Name of a numeric key in vertex dictionaries that scales turn cost locally.
-    #         Useful for modelling junction complexity or restricted turning areas. Default is None.
-    #     directed : bool, optional
-    #         If True, edges are traversed only from start to end vertex.
-    #         If False, the graph is treated as undirected. Default is False.
-    #     edgeFilter : callable(edge) -> bool, optional
-    #         A function that returns False for edges that must not be traversed.
-    #         This enforces hard constraints such as blocked corridors. Default is None.
-    #     vertexFilter : callable(vertex) -> bool, optional
-    #         A function that returns False for vertices that must not be visited
-    #         (except for start and end vertices). Default is None.
-    #     edgeCostFunc : callable(edge) -> float, optional
-    #         Custom function overriding edgeKey and geometric length to compute
-    #         edge traversal cost.
-    #     vertexCostFunc : callable(vertex) -> float, optional
-    #         Custom function overriding vertexKey to compute vertex visitation cost.
-    #     turnCostFunc : callable(prev, curr, next, inEdge, outEdge, spread) -> float, optional
-    #         Fully custom function to compute turn cost between consecutive edges.
-    #         Overrides turnWeight, turnPower, and turnKey.
-    #     useAStar : bool, optional
-    #         If True, uses A* search instead of Dijkstra when edge costs are geometric,
-    #         improving performance on large graphs.
-    #     heuristicScale : float, optional
-    #         Multiplier for the A* heuristic (must be ≤ 1 for admissibility).
-    #         Lower values make the search more conservative.
-    #     returnVertices : bool, optional
-    #         If True, returns both the Wire and the ordered list of vertices forming
-    #         the path. Useful for debugging or analysis.
-    #     tolerance : float, optional
-    #         The desired tolerance. Default is 0.0001.
-    #     silent : bool, optional
-    #         If True, suppresses error and warning messages. Default is False.
-
-    #     Returns
-    #     -------
-    #     topologic_core.Wire
-    #         A wire representing the shortest path between the two input vertices,
-    #         optionally straightened and with transferred dictionaries.
-
-    #     If returnVertices and/or returnEdges are True:
-    #         - returnVertices=True  -> returns (wire, path_vertex_indices)
-    #         - returnEdges=True     -> returns (wire, path_edge_index_pairs)
-    #         - both True            -> returns (wire, path_vertex_indices, path_edge_index_pairs)
-    #     """
-
-    #     from topologicpy.Topology import Topology
-    #     from topologicpy.Graph import Graph
-    #     from topologicpy.Vertex import Vertex
-    #     from topologicpy.Edge import Edge
-    #     from topologicpy.Wire import Wire
-    #     from topologicpy.Dictionary import Dictionary
-    #     from topologicpy.Vector import Vector
-
-    #     import heapq
-    #     import math
-
-    #     # --------------------------------------------------
-    #     # Validation
-    #     # --------------------------------------------------
-    #     if not Topology.IsInstance(graph, "Graph"):
-    #         if not silent:
-    #             print("Graph.ShortestPath - Error: The input graph is not a valid graph. Returning None.")
-    #         return None
-    #     if not Topology.IsInstance(vertexA, "Vertex"):
-    #         if not silent:
-    #             print("Graph.ShortestPath - Error: The input vertexA is not a valid vertex. Returning None.")
-    #         return None
-    #     if not Topology.IsInstance(vertexB, "Vertex"):
-    #         if not silent:
-    #             print("Graph.ShortestPath - Error: The input vertexB is not a valid vertex. Returning None.")
-    #         return None
-    #     if isinstance(edgeKey, str) and edgeKey.lower() == "length":
-    #         edgeKey = "Length"
-
-    #     heuristicScale = max(0.0, min(1.0, float(heuristicScale)))
-
-    #     # --------------------------------------------------
-    #     # Helpers
-    #     # --------------------------------------------------
-    #     def _num_from_dict(topo, key: str, default: float = 0.0) -> float:
-    #         if not key:
-    #             return default
-    #         try:
-    #             d = Topology.Dictionary(topo)
-    #             if not d:
-    #                 return default
-    #             v = Dictionary.ValueAtKey(d, key)
-    #             if v is None:
-    #                 return default
-    #             if isinstance(v, bool):
-    #                 return float(int(v))
-    #             if isinstance(v, (int, float)):
-    #                 return float(v)
-    #             if isinstance(v, str):
-    #                 vv = v.strip()
-    #                 if vv == "":
-    #                     return default
-    #                 return float(vv)
-    #         except Exception:
-    #             return default
-    #         return default
-
-    #     def _edge_length(e) -> float:
-    #         try:
-    #             return float(Edge.Length(e))
-    #         except Exception:
-    #             sv, ev = Edge.StartVertex(e), Edge.EndVertex(e)
-    #             ax, ay, az = Vertex.Coordinates(sv, mantissa=15)
-    #             bx, by, bz = Vertex.Coordinates(ev, mantissa=15)
-    #             dx, dy, dz = bx - ax, by - ay, bz - az
-    #             return float(math.sqrt(dx * dx + dy * dy + dz * dz))
-
-    #     # --------------------------------------------------
-    #     # Extract graph vertices/edges
-    #     # --------------------------------------------------
-    #     vertices = Graph.Vertices(graph)
-    #     edges = Graph.Edges(graph)
-    #     if not vertices or not edges:
-    #         return None
-
-    #     coords = [Vertex.Coordinates(v, mantissa=15) for v in vertices]
-
-    #     # --------------------------------------------------
-    #     # Robust indexing (no object identity dependency)
-    #     # --------------------------------------------------
-    #     def _vkey(v, m=9):
-    #         return tuple(Vertex.Coordinates(v, mantissa=m))
-
-    #     key_to_index = {}
-    #     for i, v in enumerate(vertices):
-    #         key_to_index[_vkey(v, m=9)] = i
-
-    #     def _find_index(v):
-    #         # 1) exact (rounded) coordinate match
-    #         k = _vkey(v, m=9)
-    #         i = key_to_index.get(k, None)
-    #         if i is not None:
-    #             return i
-
-    #         # 2) nearest fallback by quadrance (used only for endpoints or stray vertices)
-    #         vx, vy, vz = Vertex.Coordinates(v, mantissa=15)
-    #         best_i = None
-    #         best_q = float("inf")
-    #         for j, (x, y, z) in enumerate(coords):
-    #             dx, dy, dz = x - vx, y - vy, z - vz
-    #             q = dx * dx + dy * dy + dz * dz
-    #             if q < best_q:
-    #                 best_q = q
-    #                 best_i = j
-
-    #         if best_i is None:
-    #             return None
-
-    #         # Guard against snapping to an unrelated vertex in dense graphs
-    #         if best_q > (tolerance * tolerance):
-    #             return None
-    #         return best_i
-
-    #     # Snap endpoints to nearest graph vertices (existing behavior)
-    #     try:
-    #         start_v = Graph.NearestVertex(graph, vertexA)
-    #         goal_v = Graph.NearestVertex(graph, vertexB)
-    #     except Exception:
-    #         if not silent:
-    #             print("Graph.ShortestPath - Error: Could not find nearest vertices. Returning None.")
-    #         return None
-
-    #     s_idx = _find_index(start_v)
-    #     t_idx = _find_index(goal_v)
-    #     if s_idx is None or t_idx is None:
-    #         if not silent:
-    #             print("Graph.ShortestPath - Error: Could not locate start/end vertices in graph. Returning None.")
-    #         return None
-
-    #     if s_idx == t_idx:
-    #         # Start and end are the same after snapping
-    #         return None
-
-    #     # --------------------------------------------------
-    #     # Directed setting (if not explicitly provided)
-    #     # --------------------------------------------------
-    #     if directed is None:
-    #         try:
-    #             gd = Topology.Dictionary(graph)
-    #             val = Dictionary.ValueAtKey(gd, "directed") if gd else None
-    #             if isinstance(val, bool):
-    #                 directed = val
-    #             elif isinstance(val, (int, float)) and val in (0, 1):
-    #                 directed = bool(val)
-    #         except Exception:
-    #             pass
-    #     if directed is None:
-    #         directed = False
-
-    #     # --------------------------------------------------
-    #     # Vertex filter (applied as hard constraints)
-    #     # --------------------------------------------------
-    #     allowed_vertex = [True] * len(vertices)
-    #     if callable(vertexFilter):
-    #         for i, v in enumerate(vertices):
-    #             if i in (s_idx, t_idx):
-    #                 continue  # always allow endpoints
-    #             try:
-    #                 allowed_vertex[i] = bool(vertexFilter(v))
-    #             except Exception:
-    #                 allowed_vertex[i] = True
-
-    #     allowed_vertex[s_idx] = True
-    #     allowed_vertex[t_idx] = True
-
-    #     # --------------------------------------------------
-    #     # Vertex costs
-    #     # --------------------------------------------------
-    #     v_cost = [0.0] * len(vertices)
-    #     if callable(vertexCostFunc):
-    #         for i, v in enumerate(vertices):
-    #             try:
-    #                 v_cost[i] = float(vertexCostFunc(v))
-    #             except Exception:
-    #                 v_cost[i] = 0.0
-    #     elif vertexKey:
-    #         for i, v in enumerate(vertices):
-    #             v_cost[i] = _num_from_dict(v, vertexKey, default=0.0)
-
-    #     # Conventional: do not charge the start vertex
-    #     v_cost[s_idx] = 0.0
-
-    #     def _turn_multiplier_at_vertex(i: int) -> float:
-    #         if not turnKey:
-    #             return 1.0
-    #         return _num_from_dict(vertices[i], turnKey, default=1.0)
-
-    #     # --------------------------------------------------
-    #     # Build adjacency with arc bookkeeping
-    #     #   arc_* arrays store traversal arcs, each referencing an ORIGINAL graph edge.
-    #     # --------------------------------------------------
-    #     adj = [[] for _ in range(len(vertices))]  # adj[u] = list of (v, arc_index)
-
-    #     arc_u = []
-    #     arc_v = []
-    #     arc_dir = []    # direction vector for traversal u->v
-    #     arc_w = []      # traversal cost
-    #     arc_edge = []   # ORIGINAL graph edge object used for traversal u->v
-
-    #     for e in edges:
-    #         # Edge-level filter
-    #         if callable(edgeFilter):
-    #             try:
-    #                 if not bool(edgeFilter(e)):
-    #                     continue
-    #             except Exception:
-    #                 pass
-
-    #         sv, ev = Edge.StartVertex(e), Edge.EndVertex(e)
-    #         ui, vi = _find_index(sv), _find_index(ev)
-    #         if ui is None or vi is None:
-    #             continue
-
-    #         # Vertex-level hard constraint
-    #         if not allowed_vertex[ui] or not allowed_vertex[vi]:
-    #             continue
-
-    #         # Determine edge traversal cost
-    #         if callable(edgeCostFunc):
-    #             try:
-    #                 w = float(edgeCostFunc(e))
-    #             except Exception:
-    #                 w = 0.0
-    #         else:
-    #             if edgeKey == "Length":
-    #                 w = _edge_length(e)
-    #             elif edgeKey:
-    #                 w = _num_from_dict(e, edgeKey, default=0.0)
-    #             else:
-    #                 w = _edge_length(e)
-
-    #         ax, ay, az = coords[ui]
-    #         bx, by, bz = coords[vi]
-
-    #         # forward arc ui->vi uses ORIGINAL edge e
-    #         ai = len(arc_u)
-    #         arc_u.append(ui)
-    #         arc_v.append(vi)
-    #         arc_dir.append([bx - ax, by - ay, bz - az])
-    #         arc_w.append(w)
-    #         arc_edge.append(e)
-    #         adj[ui].append((vi, ai))
-
-    #         if not directed:
-    #             # reverse arc vi->ui still references ORIGINAL edge e (traversed opposite)
-    #             aj = len(arc_u)
-    #             arc_u.append(vi)
-    #             arc_v.append(ui)
-    #             arc_dir.append([ax - bx, ay - by, az - bz])
-    #             arc_w.append(w)
-    #             arc_edge.append(e)
-    #             adj[vi].append((ui, aj))
-
-    #     # --------------------------------------------------
-    #     # Heuristic (A*) - only admissible when using geometric length costs and no custom funcs
-    #     # --------------------------------------------------
-    #     def _heuristic(i: int) -> float:
-    #         if not useAStar:
-    #             return 0.0
-    #         ax, ay, az = coords[i]
-    #         bx, by, bz = coords[t_idx]
-    #         dx, dy, dz = bx - ax, by - ay, bz - az
-    #         return heuristicScale * math.sqrt(dx * dx + dy * dy + dz * dz)
-
-    #     if useAStar:
-    #         if callable(edgeCostFunc) or (edgeKey != "Length") or callable(turnCostFunc) or (turnWeight != 0.0) or bool(turnKey):
-    #             # Conservative: disable A* if costs are not purely geometric / consistent.
-    #             useAStar = False
-
-    #     # --------------------------------------------------
-    #     # Dijkstra / (optionally A*) with optional turn costs
-    #     # --------------------------------------------------
-    #     use_turn = (turnWeight != 0.0) or callable(turnCostFunc) or bool(turnKey)
-    #     INF = float("inf")
-
-    #     path_idx = None
-    #     path_arcs = None  # ordered arc indices along the path, length = len(path_idx)-1
-
-    #     if not use_turn:
-    #         # ----------------------------
-    #         # Standard Dijkstra / A* on vertices
-    #         # ----------------------------
-    #         dist = [INF] * len(vertices)
-    #         prev_v = [None] * len(vertices)
-    #         prev_arc = [None] * len(vertices)
-
-    #         dist[s_idx] = 0.0
-    #         pq = [(0.0 + _heuristic(s_idx), 0.0, s_idx)]  # (f, g, u)
-
-    #         while pq:
-    #             f, g, u = heapq.heappop(pq)
-    #             if g != dist[u]:
-    #                 continue
-    #             if u == t_idx:
-    #                 break
-
-    #             for v, aidx in adj[u]:
-    #                 ng = g + arc_w[aidx] + v_cost[v]
-    #                 if ng < dist[v]:
-    #                     dist[v] = ng
-    #                     prev_v[v] = u
-    #                     prev_arc[v] = aidx
-    #                     heapq.heappush(pq, (ng + _heuristic(v), ng, v))
-
-    #         if dist[t_idx] == INF:
-    #             return None
-
-    #         # Reconstruct vertex indices and arcs
-    #         idx_rev = []
-    #         arc_rev = []
-    #         cur = t_idx
-    #         while cur is not None:
-    #             idx_rev.append(cur)
-    #             a = prev_arc[cur]
-    #             if a is not None:
-    #                 arc_rev.append(a)
-    #             cur = prev_v[cur]
-
-    #         idx_rev.reverse()
-    #         arc_rev.reverse()
-
-    #         path_idx = idx_rev
-    #         path_arcs = arc_rev
-
-    #     else:
-    #         # ----------------------------
-    #         # Turn-cost routing on states (prev_vertex, curr_vertex)
-    #         # incoming arc is stored per state so we can compute spread into outgoing arc
-    #         # ----------------------------
-    #         start_state = (-1, s_idx)
-
-    #         dist_state = {start_state: 0.0}
-    #         prev_state = {}         # state -> previous state
-    #         in_arc_state = {start_state: None}  # state -> incoming arc index
-
-    #         pq = [(0.0 + _heuristic(s_idx), 0.0, start_state)]  # (f, g, state)
-    #         goal_state = None
-
-    #         while pq:
-    #             f, g, state = heapq.heappop(pq)
-    #             if dist_state.get(state, INF) != g:
-    #                 continue
-
-    #             p, u = state
-    #             if u == t_idx:
-    #                 goal_state = state
-    #                 break
-
-    #             in_arc = in_arc_state.get(state, None)
-
-    #             for v, out_arc in adj[u]:
-    #                 ng = g + arc_w[out_arc] + v_cost[v]
-
-    #                 if in_arc is not None:
-    #                     s = Vector.Spread(arc_dir[in_arc], arc_dir[out_arc], mantissa=15, bracket=False)
-
-    #                     if callable(turnCostFunc):
-    #                         try:
-    #                             ng += float(turnCostFunc(p, u, v, in_arc, out_arc, s))
-    #                         except Exception:
-    #                             pass
-    #                     else:
-    #                         mult = _turn_multiplier_at_vertex(u)
-    #                         try:
-    #                             ts = (s ** turnPower) if turnPower != 1.0 else s
-    #                         except Exception:
-    #                             ts = s
-    #                         ng += float(turnWeight) * float(mult) * float(ts)
-
-    #                 next_state = (u, v)
-    #                 if ng < dist_state.get(next_state, INF):
-    #                     dist_state[next_state] = ng
-    #                     prev_state[next_state] = state
-    #                     in_arc_state[next_state] = out_arc
-    #                     heapq.heappush(pq, (ng + _heuristic(v), ng, next_state))
-
-    #         if goal_state is None:
-    #             return None
-
-    #         # Reconstruct vertices + arcs by walking states back.
-    #         # Each non-start state has an incoming arc stored in in_arc_state.
-    #         states = []
-    #         st = goal_state
-    #         while True:
-    #             states.append(st)
-    #             if st == start_state:
-    #                 break
-    #             st = prev_state.get(st, None)
-    #             if st is None:
-    #                 break
-    #         states.reverse()
-
-    #         # states: [(-1,s), (s,v1), (v1,v2), ... , (vk-1,t)]
-    #         # vertices: [s, v1, v2, ... , t]
-    #         # arcs:     incoming arcs of states[1:], in order
-    #         verts = [states[0][1]]
-    #         arcs = []
-    #         for i in range(1, len(states)):
-    #             verts.append(states[i][1])
-    #             arcs.append(in_arc_state.get(states[i], None))
-
-    #         # Clean adjacent duplicates (defensive)
-    #         cleaned_verts = []
-    #         cleaned_arcs = []
-    #         for i, vi in enumerate(verts):
-    #             if not cleaned_verts or cleaned_verts[-1] != vi:
-    #                 cleaned_verts.append(vi)
-    #                 if i > 0:
-    #                     cleaned_arcs.append(arcs[i - 1])
-    #             else:
-    #                 # duplicate vertex; drop corresponding arc as well
-    #                 pass
-
-    #         # Remove any None arcs (should not happen except pathological backtracking)
-    #         final_arcs = []
-    #         for a in cleaned_arcs:
-    #             if a is not None:
-    #                 final_arcs.append(a)
-
-    #         if len(cleaned_verts) < 2 or len(final_arcs) != (len(cleaned_verts) - 1):
-    #             return None
-
-    #         path_idx = cleaned_verts
-    #         path_arcs = final_arcs
-
-    #     if not path_idx or len(path_idx) < 2:
-    #         return None
-
-    #     # --------------------------------------------------
-    #     # Build output using ORIGINAL graph entities
-    #     # --------------------------------------------------
-    #     out_vertices = [vertices[i] for i in path_idx]
-
-    #     # Ordered ORIGINAL edges along the path (may include same edge object multiple times in undirected traversal)
-    #     out_edges = []
-    #     edge_index_pairs = []
-    #     for aidx in path_arcs:
-    #         u = arc_u[aidx]
-    #         v = arc_v[aidx]
-    #         out_edges.append(arc_edge[aidx])
-    #         edge_index_pairs.append((u, v))
-
-    #     # Build wire from ORIGINAL edges
-    #     wire = Wire.ByEdges(out_edges)
-    #     if wire is None:
-    #         return None
-
-    #     # --------------------------------------------------
-    #     # Returns
-    #     # --------------------------------------------------
-    #     if returnEdges:
-    #         m_data = Graph.MeshData(graph)
-    #         m_edges = m_data['edges']
-    #         r_e_list = []
-    #         for i_p in edge_index_pairs:
-    #             e_i = None
-    #             try:
-    #                 e_i = m_edges.index([i_p[0], i_p[1]])
-    #             except:
-    #                 try:
-    #                     e_i = m_edges.index(i_p[1], i_p[0])
-    #                 except:
-    #                     pass
-    #             if not e_i == None:
-    #                 r_e_list.append(e_i)            
-
-    #     if returnVertices and returnEdges:
-    #         return wire, list(path_idx), r_e_list
-    #     if returnVertices:
-    #         return wire, list(path_idx)
-    #     if returnEdges:
-    #         return wire, r_e_list
-    #     return wire
 
     @staticmethod
     def ShortestPaths(graph, vertexA, vertexB, vertexKey="", edgeKey="length", timeLimit=10,
