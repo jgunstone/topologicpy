@@ -1,11 +1,5 @@
 import pytest
 
-try:
-    import honeybee_energy
-    import openstudio
-except ImportError as e:
-    print("honeybee-energy is not installed. Please install it to run this test.")
-
 
 @pytest.mark.skipif(
     not pytest.importorskip("openstudio", reason="openstudio is not installed"),
@@ -13,6 +7,7 @@ except ImportError as e:
 )
 def test_set_energy_model_log_level():
     # Not implemented yet
+    import openstudio
 
     try:
         openstudio.Logger.instance().standardOutLogger().setLogLevel(openstudio.Fatal)
