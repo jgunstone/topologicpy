@@ -861,6 +861,7 @@ class Plotly:
                        intensities=[],
                        material = "default",
                        materialKey=None,
+                       flatShading = True,
                        ambient = None,
                        ambientKey=None,
                        diffuse = None,
@@ -969,7 +970,6 @@ class Plotly:
             The legend rank order of the edges of this topology. Default is 2.
         edgeLegendGroup : int , optional
             The number of the edge legend group to which the edges of this topology belong. Default is 2.
-        
         showFaces : bool , optional
             If set to True the faces will be drawn. Otherwise, they will not be drawn. Default is True.
         faceOpacity : float , optional
@@ -1023,6 +1023,8 @@ class Plotly:
             Default is plastic.
         materialKey : str , optional
             The dictionary key under which the material string is stored. Default is None.
+        flatShading : bool , optional
+            If set to True, the model is rendered with flat shading with no clear light source. Default is True.
         ambient : float , optional
             Controls the strength of ambient light applied uniformly to the surface.
             Higher values reduce shading contrast by increasing overall brightness.
@@ -1171,10 +1173,8 @@ class Plotly:
             if len(labels) == 0:
                 labels = ""
             if material == "default":
-                flatShading = True
-                lighting = None
+                lighting = {"facenormalsepsilon": 0}
             else:
-                flatShading = False
                 lighting = dict(ambient=ambient, diffuse=diffuse, specular=specular, roughness=roughness)
             fData = go.Mesh3d(
                     x = x,
@@ -1198,8 +1198,8 @@ class Plotly:
                     text = labels,
                     hovertext = labels,
                     showscale = False,
-                    flatshading=flatShading,
-                    lighting= lighting
+                    flatshading = flatShading,
+                    lighting = lighting
                 )
             return fData
 

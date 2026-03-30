@@ -1188,7 +1188,11 @@ class Shell():
             return None
         ebEdges = [ebEdge for ebEdge in Topology.Edges(shell) if len(Topology.SuperTopologies(ebEdge, shell, topologyType="face")) == 1]
         if len(ebEdges) > 1:
-            wires = Topology.Wires(Topology.SelfMerge(Cluster.ByTopologies(ebEdges), tolerance=tolerance))
+            x = Topology.SelfMerge(Cluster.ByTopologies(ebEdges), tolerance=tolerance)
+            if Topology.IsInstance(x, "wire"):
+                wires = [x]
+            else:
+                wires = Topology.Wires(x)
             lengths = [Wire.Length(w) for w in wires if Topology.IsInstance(w, "wire")]
             wires = Helper.Sort(wires, lengths)
             return wires[:-1]

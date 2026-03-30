@@ -6,21 +6,27 @@ website:
   navbar:
     left:
       - href: index.qmd
+    right:
+      - href: INSTALL.qmd
 
   sidebar:
     search: true
     style: "docked"
     contents:
-      - Building_Tower.qmd
+      - BuildingTower.qmd
+      - HandDrawnHouse.qmd
       - EnergyModel.qmd
-      - MEP.ipynb
+      - MEP00.ipynb
+      - MEP01.ipynb
+      - MEP02.ipynb
+      - GraphGrammars.ipynb
 
     # TODO: add API reference using quartodoc?
     # - title: "API Reference"
     #   style: "docked"
     #   contents:
     #     - reference/*
-        # navigation items
+    # navigation items
 
 format:
   html:
