@@ -4,9 +4,9 @@ name: Build tutorials
 
 on:
   push:
-    branches: [add-pixi]
+    branches: [main]
   pull_request:
-    branches: [add-pixi]
+    branches: [main]
 
 jobs:
   build:
