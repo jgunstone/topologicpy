@@ -1171,12 +1171,12 @@ class Edge():
             return None
         length = None
         try:
-            length = topologic.EdgeUtility.Length(edge)  # Hook to Core
+            length = round(topologic.EdgeUtility.Length(edge), mantissa)  # Hook to Core
         except:
             length = None
         if length == None:
             print("Edge.Length - Error: Could not compute the length of the input edge parameter. Returning None.")
-        return round(length, mantissa)
+        return length
 
     @staticmethod
     def Line(origin= None, length: float = 1, direction: list = [1,0,0], placement: str ="center", tolerance: float = 0.0001):
