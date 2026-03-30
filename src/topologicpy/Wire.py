@@ -6984,6 +6984,9 @@ class Wire():
         # Make a cluster of the obstacles (if any)
         ob_cluster = Cluster.ByTopologies(obstacle_list) if obstacle_list else None
 
+        # Remove collinear edges:
+        wire = Wire.RemoveCollinearEdges(wire, angTolerance=0.1, tolerance=tolerance)
+
         # Get ordered vertices of the wire
         vertices = Topology.Vertices(wire)
         n = len(vertices)
