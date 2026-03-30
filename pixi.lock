@@ -6029,8 +6029,8 @@ packages:
   requires_python: '>=3.8'
 - pypi: ./
   name: topologicpy
-  version: 0.9.13
-  sha256: 94738067698059be008a99a6159afb45f287442f2de3930b746cfbe14e9607f7
+  version: 0.9.14
+  sha256: cf18439d645258f9c98b4dabd4204970aa1c5a1a5fa2831a87c415fca2478ed1
   requires_dist:
   - numpy>=1.18.0
   - scipy>=1.4.1
@@ -6042,7 +6042,7 @@ packages:
   - webcolors
   - topologic-core>=7.0.1
   - pytest-xdist>=2.4.0 ; extra == 'test'
-  requires_python: '>=3.8,<3.14'
+  requires_python: '>=3.8,<3.15'
 - conda: https://conda.anaconda.org/conda-forge/linux-64/tornado-6.5.5-py313h07c4f96_0.conda
   sha256: 9e8497e1ecca77d03c6be2d3b5f901dfe0ab99686af4fb94ab418b7d449ac547
   md5: 6c0b0ae017b5bfd9c8d718217efd8f14
