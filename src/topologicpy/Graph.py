@@ -10426,6 +10426,7 @@ class Graph:
         from topologicpy.Color import Color
         from topologicpy.Edge import Edge
         from topologicpy.Vertex import Vertex
+        from topologicpy.Graph import Graph
         import numbers
 
         # -----------------------------
@@ -10610,7 +10611,7 @@ class Graph:
             return vals
 
         # -----------------------------
-        # Vertex mode (useEdges=False): fast O(V+E) sweep
+        # Vertex mode (useEdges=False): robust endpoint matching
         # -----------------------------
         vertices = Graph.Vertices(graph)
         n = len(vertices)
@@ -10636,18 +10637,37 @@ class Graph:
             _ = _apply_value_and_color_to_vertices(vertices, vals, unit_range=unit_range_for_color)
             return vals
 
-        # Endpoint -> vertex index (identity map + tolerance-aware fallback)
+        # Fast path by object identity for exact reused Python objects
         id_to_vidx = {id(v): i for i, v in enumerate(vertices)}
 
-        def _vidx(v):
-            j = id_to_vidx.get(id(v), None)
+        def _vidx(endpoint):
+            j = id_to_vidx.get(id(endpoint), None)
             if j is not None:
                 return j
-            j = Vertex.Index(v, vertices)
-            if j is None:
-                return None
-            id_to_vidx[id(v)] = j
-            return j
+
+            # First, robust topological equality
+            for i, gv in enumerate(vertices):
+                try:
+                    if Topology.IsSame(endpoint, gv):
+                        return i
+                except Exception:
+                    continue
+
+            # Second, geometric tolerance fallback
+            best_i = None
+            best_d = None
+            for i, gv in enumerate(vertices):
+                try:
+                    d = Vertex.Distance(endpoint, gv)
+                    if d is None:
+                        continue
+                    if d <= tolerance:
+                        if best_d is None or d < best_d:
+                            best_d = d
+                            best_i = i
+                except Exception:
+                    continue
+            return best_i
 
         deg = [0.0] * n
         for e in edges:
