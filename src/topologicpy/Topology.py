@@ -2569,7 +2569,7 @@ class Topology():
             converted_entities = []
 
             for block_entity in block:
-                converted_entity = convert_entity(block_entity, sides=sides)
+                converted_entity = convert_entity(block_entity, file, sides=sides)
                 if converted_entity is not None:
                     converted_entities.append(converted_entity)
 
