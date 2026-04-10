@@ -1755,6 +1755,8 @@ class Topology():
             The bounding box of the input topology.
 
         """
+        import math
+        from topologicpy.Topology import Topology
         from topologicpy.Vertex import Vertex
         from topologicpy.Wire import Wire
         from topologicpy.Face import Face
@@ -1762,120 +1764,180 @@ class Topology():
         from topologicpy.Cluster import Cluster
         from topologicpy.Dictionary import Dictionary
 
-        def bb(topology):
-            vertices = Topology.Vertices(topology, silent=True)
-            x = []
-            y = []
-            z = []
-            for aVertex in vertices:
-                x.append(Vertex.X(aVertex, mantissa=mantissa))
-                y.append(Vertex.Y(aVertex, mantissa=mantissa))
-                z.append(Vertex.Z(aVertex, mantissa=mantissa))
-            x_min = min(x)
-            y_min = min(y)
-            z_min = min(z)
-            maxX = max(x)
-            maxY = max(y)
-            maxZ = max(z)
-            return [x_min, y_min, z_min, maxX, maxY, maxZ]
+        def bounds_from_points(points):
+            xmin = ymin = zmin = float("inf")
+            xmax = ymax = zmax = float("-inf")
+            for x, y, z in points:
+                if x < xmin:
+                    xmin = x
+                if y < ymin:
+                    ymin = y
+                if z < zmin:
+                    zmin = z
+                if x > xmax:
+                    xmax = x
+                if y > ymax:
+                    ymax = y
+                if z > zmax:
+                    zmax = z
+            return [xmin, ymin, zmin, xmax, ymax, zmax]
+
+        def rotate_points(points, origin_xyz, x_angle=0.0, y_angle=0.0, z_angle=0.0):
+            ox, oy, oz = origin_xyz
+            xr = math.radians(x_angle)
+            yr = math.radians(y_angle)
+            zr = math.radians(z_angle)
+
+            cx = math.cos(xr)
+            sx = math.sin(xr)
+            cy = math.cos(yr)
+            sy = math.sin(yr)
+            cz = math.cos(zr)
+            sz = math.sin(zr)
+
+            rotated = []
+            for px, py, pz in points:
+                x = px - ox
+                y = py - oy
+                z = pz - oz
+
+                # Rotate around Z
+                if z_angle != 0:
+                    x, y = x * cz - y * sz, x * sz + y * cz
+
+                # Rotate around Y
+                if y_angle != 0:
+                    x, z = x * cy + z * sy, -x * sy + z * cy
+
+                # Rotate around X
+                if x_angle != 0:
+                    y, z = y * cx - z * sx, y * sx + z * cx
+
+                rotated.append((x + ox, y + oy, z + oz))
+            return rotated
 
         if not Topology.IsInstance(topology, "Topology"):
-            print("Topology.BoundingBox - Error: the input topology parameter is not a valid topology. Returning None.")
+            if not silent:
+                print("Topology.BoundingBox - Error: the input topology parameter is not a valid topology. Returning None.")
             return None
         if not isinstance(axes, str):
-            print("Topology.BoundingBox - Error: the input axes parameter is not a valid string. Returning None.")
+            if not silent:
+                print("Topology.BoundingBox - Error: the input axes parameter is not a valid string. Returning None.")
             return None
+
         axes = axes.lower()
         x_flag = "x" in axes
         y_flag = "y" in axes
         z_flag = "z" in axes
+
         if not x_flag and not y_flag and not z_flag:
-            print("Topology.BoundingBox - Error: the input axes parameter is not a recognized string. Returning None.")
+            if not silent:
+                print("Topology.BoundingBox - Error: the input axes parameter is not a recognized string. Returning None.")
             return None
+
         if Topology.IsInstance(topology, "Vertex"):
-            x_min = Vertex.X(topology)
-            y_min = Vertex.Y(topology)
-            z_min = Vertex.Z(topology)
-            dictionary = Dictionary.ByKeysValues(["xrot","yrot","zrot", "xmin", "ymin", "zmin", "xmax", "ymax", "zmax", "width", "length", "height"], [0, 0, 0, x_min, y_min, z_min, x_min, y_min, z_min, 0, 0, 0])
+            x_min = Vertex.X(topology, mantissa=mantissa)
+            y_min = Vertex.Y(topology, mantissa=mantissa)
+            z_min = Vertex.Z(topology, mantissa=mantissa)
+            dictionary = Dictionary.ByKeysValues(
+                ["xrot","yrot","zrot", "xmin", "ymin", "zmin", "xmax", "ymax", "zmax", "width", "length", "height"],
+                [0, 0, 0, x_min, y_min, z_min, x_min, y_min, z_min, 0, 0, 0]
+            )
             box = Vertex.ByCoordinates(x_min, y_min, z_min)
             box = Topology.SetDictionary(box, dictionary)
             return box
+
         vertices = Topology.SubTopologies(topology, subTopologyType="vertex")
-        if len(vertices) == 1: # A Cluster made of one vertex. Rare, but can happen!
-            x_min = Vertex.X(vertices[0])
-            y_min = Vertex.Y(vertices[0])
-            z_min = Vertex.Z(vertices[0])
-            dictionary = Dictionary.ByKeysValues(["xrot","yrot","zrot", "xmin", "ymin", "zmin", "xmax", "ymax", "zmax", "width", "length", "height"], [0, 0, 0, x_min, y_min, z_min, x_min, y_min, z_min, 0, 0, 0])
+        if not isinstance(vertices, list) or len(vertices) == 0:
+            if not silent:
+                print("Topology.BoundingBox - Error: Could not extract vertices from the input topology. Returning None.")
+            return None
+
+        if len(vertices) == 1:  # A Cluster made of one vertex. Rare, but can happen!
+            x_min = Vertex.X(vertices[0], mantissa=mantissa)
+            y_min = Vertex.Y(vertices[0], mantissa=mantissa)
+            z_min = Vertex.Z(vertices[0], mantissa=mantissa)
+            dictionary = Dictionary.ByKeysValues(
+                ["xrot","yrot","zrot", "xmin", "ymin", "zmin", "xmax", "ymax", "zmax", "width", "length", "height"],
+                [0, 0, 0, x_min, y_min, z_min, x_min, y_min, z_min, 0, 0, 0]
+            )
             box = Vertex.ByCoordinates(x_min, y_min, z_min)
             box = Topology.SetDictionary(box, dictionary)
             return box
-        topology = Cluster.ByTopologies(vertices)
-        boundingBox = bb(topology)
-        x_min = boundingBox[0]
-        y_min = boundingBox[1]
-        z_min = boundingBox[2]
-        x_max = boundingBox[3]
-        y_max = boundingBox[4]
-        z_max = boundingBox[5]
+
+        temp_topology = Cluster.ByTopologies(vertices)
+        origin = Topology.Centroid(temp_topology)
+        ox, oy, oz = Vertex.Coordinates(origin, mantissa=mantissa)
+
+        points = []
+        for v in vertices:
+            x, y, z = Vertex.Coordinates(v, mantissa=mantissa)
+            points.append((x, y, z))
+
+        boundingBox = bounds_from_points(points)
+        x_min, y_min, z_min, x_max, y_max, z_max = boundingBox
         w = abs(x_max - x_min)
         l = abs(y_max - y_min)
         h = abs(z_max - z_min)
+
         best_area = 2*l*w + 2*l*h + 2*w*h
         orig_area = best_area
         best_x = 0
         best_y = 0
         best_z = 0
         best_bb = boundingBox
-        origin = Topology.Centroid(topology)
+
         optimize = min(max(optimize, 0), 10)
         if optimize > 0:
-            factor = (round(((11 - optimize)/30 + 0.57), 2))
+            factor = round(((11 - optimize) / 30 + 0.57), 2)
             flag = False
+
             for n in range(10, 0, -1):
                 if flag:
                     break
+
                 if x_flag:
                     xa = n
-                    xb = 90+n
+                    xb = 90 + n
                     xc = n
                 else:
                     xa = 0
                     xb = 1
                     xc = 1
+
                 if y_flag:
                     ya = n
-                    yb = 90+n
+                    yb = 90 + n
                     yc = n
                 else:
                     ya = 0
                     yb = 1
                     yc = 1
+
                 if z_flag:
                     za = n
-                    zb = 90+n
+                    zb = 90 + n
                     zc = n
                 else:
                     za = 0
                     zb = 1
                     zc = 1
-                for x in range(xa,xb,xc):
+
+                for x in range(xa, xb, xc):
                     if flag:
                         break
-                    for y in range(ya,yb,yc):
+                    for y in range(ya, yb, yc):
                         if flag:
                             break
-                        for z in range(za,zb,zc):
-                            if flag:
-                                break
-                            t = Topology.Rotate(topology, origin=origin, axis=[0, 0, 1], angle=z)
-                            t = Topology.Rotate(t, origin=origin, axis=[0, 1, 0], angle=y)
-                            t = Topology.Rotate(t, origin=origin, axis=[1, 0, 0], angle=x)
-                            x_min, y_min, z_min, x_max, y_max, z_max = bb(t)
+                        for z in range(za, zb, zc):
+                            rotated_points = rotate_points(points, (ox, oy, oz), x_angle=x, y_angle=y, z_angle=z)
+                            x_min, y_min, z_min, x_max, y_max, z_max = bounds_from_points(rotated_points)
                             w = abs(x_max - x_min)
                             l = abs(y_max - y_min)
                             h = abs(z_max - z_min)
                             area = 2*l*w + 2*l*h + 2*w*h
-                            if area < orig_area*factor:
+
+                            if area < orig_area * factor:
                                 best_area = area
                                 best_x = x
                                 best_y = y
@@ -1883,13 +1945,13 @@ class Topology():
                                 best_bb = [x_min, y_min, z_min, x_max, y_max, z_max]
                                 flag = True
                                 break
+
                             if area < best_area:
                                 best_area = area
                                 best_x = x
                                 best_y = y
                                 best_z = z
                                 best_bb = [x_min, y_min, z_min, x_max, y_max, z_max]
-                        
         else:
             best_bb = boundingBox
 
@@ -1901,14 +1963,21 @@ class Topology():
 
         baseWire = Wire.ByVertices([vb1, vb2, vb3, vb4], close=True, tolerance=tolerance, silent=silent)
         baseFace = Face.ByWire(baseWire, tolerance=tolerance)
+
         if abs(z_max - z_min) <= tolerance:
             box = baseFace
         else:
             box = Cell.ByThickenedFace(baseFace, thickness=abs(z_max - z_min), bothSides=False, reverse=False)
+
         box = Topology.Rotate(box, origin=origin, axis=[1, 0, 0], angle=-best_x)
         box = Topology.Rotate(box, origin=origin, axis=[0, 1, 0], angle=-best_y)
         box = Topology.Rotate(box, origin=origin, axis=[0, 0, 1], angle=-best_z)
-        dictionary = Dictionary.ByKeysValues(["xrot","yrot","zrot", "xmin", "ymin", "zmin", "xmax", "ymax", "zmax", "width", "length", "height"], [best_x, best_y, best_z, x_min, y_min, z_min, x_max, y_max, z_max, (x_max - x_min), (y_max - y_min), (z_max - z_min)])
+
+        dictionary = Topology.Dictionary(topology)
+        dictionary = Dictionary.SetValuesAtKeys(dictionary,
+            ["xrot","yrot","zrot", "xmin", "ymin", "zmin", "xmax", "ymax", "zmax", "width", "length", "height"],
+            [best_x, best_y, best_z, x_min, y_min, z_min, x_max, y_max, z_max, (x_max - x_min), (y_max - y_min), (z_max - z_min)]
+        )
         box = Topology.SetDictionary(box, dictionary)
         return box
 

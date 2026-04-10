@@ -719,9 +719,15 @@ class Shell():
                 wires = [result]
             else:
                 wires = Topology.Wires(result)
-            lengths = [Wire.Length(w) for w in wires if Topology.IsInstance(w, "wire")]
-            wires = Helper.Sort(wires, lengths)
-            return wires[-1]
+            wires = [w for w in wires if Topology.IsInstance(w, "wire")]
+            if len(wires) == 1:
+                return wires[0]
+            if len(wires) > 0:
+                lengths = [Wire.Length(w) for w in wires]
+                wires = Helper.Sort(wires, lengths)
+                return wires[-1]
+        if not silent:
+            print("Shell.ExternalBoundary - Error: External boundary could not be found. Returning None.")
         return None
 
     @staticmethod

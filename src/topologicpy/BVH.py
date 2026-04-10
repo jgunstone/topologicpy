@@ -207,6 +207,7 @@ class BVH:
         """
         from topologicpy.Vertex import Vertex
         from topologicpy.Topology import Topology
+        from topologicpy.Dictionary import Dictionary
         from topologicpy.Helper import Helper
 
         topologyList = Helper.Flatten(list(topologies))
@@ -220,19 +221,53 @@ class BVH:
         bvh = BVH()
 
         # Precompute per-item AABBs & centroids
-        bvh.items = topologyList
+        bvh.items = []
         bvh.bboxes = []
         bvh.centroids = []
 
-        for topo in bvh.items:
-            pts = [Vertex.Coordinates(v) for v in Topology.Vertices(topo)]
-            if not pts:
-                # Degenerate: keep a tiny box at (0,0,0) to avoid crashes
+        for topo in topologyList:
+            pts = None
+            d = Topology.Dictionary(topo)
+            aabb = Dictionary.ValueAtKey(d, "aabb", None)
+
+            if aabb is None:
+                xmin = ymin = zmin = float("inf")
+                xmax = ymax = zmax = float("-inf")
+
+                verts = Topology.Vertices(topo)
+                if not isinstance(verts, list) or len(verts) == 0:
+                    if not silent:
+                        print("BVH.ByTopologies - Error: Invalid topology with no vertices. Skipping.")
+                    continue
+
+                for v in verts:
+                    x, y, z = Vertex.Coordinates(v)
+                    xmin = min(xmin, x)
+                    ymin = min(ymin, y)
+                    zmin = min(zmin, z)
+                    xmax = max(xmax, x)
+                    ymax = max(ymax, y)
+                    zmax = max(zmax, z)
+
+                pts = [[xmin, ymin, zmin], [xmax, ymax, zmax]]
+                d = Dictionary.SetValueAtKey(d, "aabb", [xmin, ymin, zmin, xmax, ymax, zmax])
+                Topology.SetDictionary(topo, d)
+            else:
+                if isinstance(aabb, (list, tuple)) and len(aabb) == 6:
+                    pts = [list(aabb[:3]), list(aabb[3:])]
+                else:
+                    if not silent:
+                        print("BVH.ByTopologies - Error: Invalid cached AABB found. Skipping.")
+                    continue
+            
+            if pts is None:
                 box = AABB.from_points([(0.0, 0.0, 0.0)], pad=tolerance)
                 c = (0.0, 0.0, 0.0)
             else:
                 box = AABB.from_points(pts, pad=tolerance)
                 c = box.center()
+
+            bvh.items.append(topo)
             bvh.bboxes.append(box)
             bvh.centroids.append(c)
 
@@ -240,7 +275,7 @@ class BVH:
         indices = list(range(len(bvh.items)))
         if not indices:
             if not silent:
-                print("BVH.Topologies - Warning: no items to build.")
+                print("BVH.ByTopologies - Warning: no items to build.")
             return bvh
 
         # Reserve nodes list
