@@ -225,10 +225,11 @@ class Topology():
             The input topology with the apertures added to it.
 
         """
+        from topologicpy.Topology import Topology
         from topologicpy.Vertex import Vertex
         from topologicpy.Dictionary import Dictionary
         from topologicpy.BVH import BVH
-        
+
         def best_candidate(aperture, candidates, tolerance=0.0001):
             ap_iv = Topology.InternalVertex(aperture)
             for candidate in candidates:
@@ -244,41 +245,55 @@ class Topology():
         if not isinstance(apertures, list):
             print("Topology.AddApertures - Error: the input apertures parameter is not a list. Returning None.")
             return None
+
         apertures = [x for x in apertures if Topology.IsInstance(x, "Topology")]
         if len(apertures) < 1:
             return topology
+
         if not subTopologyType:
             subTopologyType = "self"
         if not subTopologyType.lower() in ["self", "cell", "face", "edge", "vertex"]:
             print("Topology.AddApertures - Error: the input subtopology type parameter is not a recognized type. Returning None.")
             return None
-        
+
+        cleaned_apertures = []
         for aperture in apertures:
             d = Topology.Dictionary(aperture)
             d = Dictionary.SetValueAtKey(d, "type", "Aperture")
             aperture = Topology.SetDictionary(aperture, d)
-        
-        if subTopologyType == "self":
+            cleaned_apertures.append(aperture)
+
+        apertures = cleaned_apertures
+
+        if subTopologyType.lower() == "self":
             topology = Topology.AddContent(topology, apertures, subTopologyType=subTopologyType, tolerance=tolerance)
             return topology
         else:
-            bvh = BVH.ByTopologies(Topology.SubTopologies(topology, subTopologyType=subTopologyType), silent=True)
+            subTopologies = Topology.SubTopologies(topology, subTopologyType=subTopologyType)
+            bvh = BVH.ByTopologies(subTopologies, silent=True)
             used = []
+
             for aperture in apertures:
                 candidates = BVH.Clashes(bvh, aperture)
-                if isinstance(candidates, list):
-                    if len(candidates) == 0:
-                        return topology
-                    elif len(candidates) == 1:
-                        subTopology = candidates[0]
-                    if len(candidates) > 0:
-                        subTopology = best_candidate(aperture, candidates, tolerance=tolerance)
-                    if Topology.IsInstance(subTopology, "topology"):
-                        used.append(subTopology)
-                        if exclusive == True:
-                            if subTopology in used:
-                                continue
-                        subTopology = Topology.AddContent(subTopology, [aperture], subTopologyType="self", tolerance=tolerance)
+                if not isinstance(candidates, list) or len(candidates) == 0:
+                    continue
+
+                if len(candidates) == 1:
+                    subTopology = candidates[0]
+                else:
+                    subTopology = best_candidate(aperture, candidates, tolerance=tolerance)
+
+                if not Topology.IsInstance(subTopology, "Topology"):
+                    continue
+
+                if exclusive == True and subTopology in used:
+                    continue
+
+                subTopology = Topology.AddContent(subTopology, [aperture], subTopologyType="self", tolerance=tolerance)
+
+                if exclusive == True:
+                    used.append(subTopology)
+
         return topology
     
     @staticmethod
