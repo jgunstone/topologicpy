@@ -5018,7 +5018,21 @@ class Graph:
                 silent: bool = False,
                 mode: str = "lightweight"):
         """
-        Create a Graph from an IFC file.
+        Create a Graph from an IFC file. This code is partially based on code from Bruno Postle. Supported relationship types are:
+        "IfcRelConnectsPorts"
+        "IfcRelConnectsPortToElement"
+        "IfcRelAggregates"
+        "IfcRelNests"
+        "IfcRelAssignsToGroup
+        "IfcRelConnectsPathElements"
+        "IfcRelConnectsStructuralMember"
+        "IfcRelContainedInSpatialStructure"
+        "IfcRelFillsElement"
+        "IfcRelSpaceBoundary"
+        "IfcRelVoidsElement"
+        "IfcRelDefinesByProperties"
+        "IfcRelAssociatesMaterial"
+        "IfcRelDefinesByType"
 
         Parameters
         ----------
@@ -5043,7 +5057,7 @@ class Graph:
             the subtopology. Otherwise, use its centroid. Default is False.
         storeBREP : bool , optional
             In geometry mode, if set to True, store the BREP of the subtopology
-            in its representative vertex. Default is False.
+            in its representative vertex. The dictionary key is "BREP". Default is False.
         removeCoplanarFaces : bool , optional
             In geometry mode, if set to True, coplanar faces are removed.
             Default is False.
@@ -5545,7 +5559,21 @@ class Graph:
                   silent: bool = False,
                   mode="lightweight"):
         """
-        Create a Graph from an IFC path. This code is partially based on code from Bruno Postle.
+        Create a Graph from an IFC path. This code is partially based on code from Bruno Postle. Supported relationship types are:
+        "IfcRelConnectsPorts"
+        "IfcRelConnectsPortToElement"
+        "IfcRelAggregates"
+        "IfcRelNests"
+        "IfcRelAssignsToGroup
+        "IfcRelConnectsPathElements"
+        "IfcRelConnectsStructuralMember"
+        "IfcRelContainedInSpatialStructure"
+        "IfcRelFillsElement"
+        "IfcRelSpaceBoundary"
+        "IfcRelVoidsElement"
+        "IfcRelDefinesByProperties"
+        "IfcRelAssociatesMaterial"
+        "IfcRelDefinesByType"
 
         Parameters
         ----------
@@ -5564,7 +5592,7 @@ class Graph:
         useInternalVertex : bool , optional
             If set to True, use an internal vertex to represent the subtopology. Otherwise, use its centroid. Default is False.
         storeBREP : bool , optional
-            If set to True, store the BRep of the subtopology in its representative vertex. Default is False.
+            If set to True, store the BRep of the subtopology in its representative vertex. The dictionary key is "BREP". Default is False.
         removeCoplanarFaces : bool , optional
             If set to True, coplanar faces are removed. Otherwise they are not. Default is False.
         xMin : float, optional
@@ -18111,16 +18139,22 @@ class Graph:
             path = Wire.OrientEdges(path, Wire.StartVertex(path), tolerance=tolerance)
         return path
 
-    
+
     @staticmethod
-    def PyvisGraph(graph, path, overwrite: bool = True, height: int = 900, backgroundColor: str = "white",
-                   fontColor: str = "black", notebook: bool = False,
-                   vertexSize: int = 6, vertexSizeKey: str = None, vertexColor: str = "black",
-                   vertexColorKey: str = None, vertexLabelKey: str = None, vertexGroupKey: str = None,
-                   vertexGroups: list = None, minVertexGroup: float = None, maxVertexGroup: float = None, 
-                   edgeLabelKey: str = None, edgeWeight: int = 0, edgeWeightKey: str = None,
-                   showNeighbours: bool = True, selectMenu: bool = True,
-                   filterMenu: bool = True, colorScale: str = "viridis", tolerance: float = 0.0001):
+    def PyvisGraph(graph, path,
+                overwrite: bool = True,
+                height: int = 900,
+                backgroundColor: str = "white",
+                fontColor: str = "black", notebook: bool = False,
+                vertexSize: int = 6, vertexSizeKey: str = None,
+                vertexColor: str = "black", vertexColorKey: str = None,
+                vertexLabel: str = "", vertexLabelKey: str = None,
+                vertexGroupKey: str = None, vertexGroups: list = None, minVertexGroup: float = None, maxVertexGroup: float = None,
+                edgeLabel: str = "", edgeLabelKey: str = None,
+                edgeWeight: int = 0, edgeWeightKey: str = None,
+                edgeColor: str = "black", edgeColorKey: str = None,
+                showNeighbours: bool = True, selectMenu: bool = True,
+                filterMenu: bool = True, colorScale: str = "viridis", tolerance: float = 0.0001):
         """
         Displays a pyvis graph. See https://pyvis.readthedocs.io/.
 
@@ -18140,14 +18174,17 @@ class Graph:
             The desired font color for the figure. This can be a named color or a hexadecimal value. Default is 'black'.
         notebook : bool , optional
             If set to True, the figure will be targeted at a Jupyter Notebook. Note that this is not working well. Pyvis has bugs. Default is False.
+
         vertexSize : int , optional
             The desired default vertex size. Default is 6.
         vertexSizeKey : str , optional
-            If not set to None, the vertex size will be derived from the dictionary value set at this key. If set to "degree", the size of the vertex will be determined by its degree (number of neighbors). Default is None.
+            If not set to None, the vertex size will be derived from the dictionary value set at this key. If set to "degree" or "neighbours" or "neighbors", the size of the vertex will be determined by its degree. Default is None.
         vertexColor : str , optional
-            The desired default vertex color. his can be a named color or a hexadecimal value. Default is 'black'.
+            The desired default vertex color. This can be a named color or a hexadecimal value. Default is 'black'.
         vertexColorKey : str , optional
             If not set to None, the vertex color will be derived from the dictionary value set at this key. Default is None.
+        vertexLabel : str , optional
+            The default vertex label. Default is "".
         vertexLabelKey : str , optional
             If not set to None, the vertex label will be derived from the dictionary value set at this key. Default is None.
         vertexGroupKey : str , optional
@@ -18158,161 +18195,519 @@ class Graph:
             If the vertex groups are numeric, specify the minimum value you wish to consider for vertex coloring. Default is None.
         maxVertexGroup : int or float , optional
             If the vertex groups are numeric, specify the maximum value you wish to consider for vertex coloring. Default is None.
-        
+
+        edgeLabel : str , optional
+            The default edge label. Default is "".
+        edgeLabelKey : str , optional
+            If not set to None, the edge label will be derived from the dictionary value set at this key. Default is None.
         edgeWeight : int , optional
             The desired default weight of the edge. This determines its thickness. Default is 0.
         edgeWeightKey : str, optional
             If not set to None, the edge weight will be derived from the dictionary value set at this key. If set to "length" or "distance", the weight of the edge will be determined by its geometric length. Default is None.
-        edgeLabelKey : str , optional
-            If not set to None, the edge label will be derived from the dictionary value set at this key. Default is None.
-        showNeighbors : bool , optional
+        edgeColor : string , optional
+            The desired default color of the edge. Default is "black".
+        edgeColorKey : str, optional
+            If not set to None, the edge color will be derived from the dictionary value set at this key. Default is None.
+
+        showNeighbours : bool , optional
             If set to True, a list of neighbors is shown when you hover over a vertex. Default is True.
         selectMenu : bool , optional
             If set to True, a selection menu will be displayed. Default is True
         filterMenu : bool , optional
             If set to True, a filtering menu will be displayed. Default is True.
         colorScale : str , optional
-            The desired type of plotly color scales to use (e.g. "viridis", "plasma"). Default is "viridis". For a full list of names, see https://plotly.com/python/builtin-colorscales/.
+            The desired type of plotly color scales to use (e.g. "viridis", "plasma"). Default is "viridis".
         tolerance : float , optional
             The desired tolerance. Default is 0.0001.
+
         Returns
         -------
         None
             The pyvis graph is displayed either inline (notebook mode) or in a new browser window or tab.
-
         """
+        import os
+        import warnings
+        from os.path import exists
+
         from topologicpy.Vertex import Vertex
         from topologicpy.Edge import Edge
         from topologicpy.Topology import Topology
         from topologicpy.Dictionary import Dictionary
         from topologicpy.Color import Color
-        from os.path import exists
 
         try:
             from pyvis.network import Network
-        except:
+        except Exception:
             print("Graph.PyvisGraph - Information: Installing required pyvis library.")
             try:
                 os.system("pip install pyvis")
-            except:
+            except Exception:
                 os.system("pip install pyvis --user")
             try:
                 from pyvis.network import Network
                 print("Graph.PyvisGraph - Information: pyvis library installed correctly.")
-            except:
-                warnings.warn("Graph - Error: Could not import pyvis. Please try to install pyvis manually. Returning None.")
+            except Exception:
+                warnings.warn("Graph.PyvisGraph - Error: Could not import pyvis. Please try to install pyvis manually. Returning None.")
                 return None
-        
-        net = Network(height=str(height)+"px", width="100%", bgcolor=backgroundColor, font_color=fontColor, select_menu=selectMenu, filter_menu=filterMenu, cdn_resources="remote", notebook=notebook)
-        if notebook == True:
-            net.prep_notebook()
-        
+
+        def _dict_value(d, key, default=None):
+            if d is None or key is None:
+                return default
+            try:
+                value = Dictionary.ValueAtKey(d, key)
+                return default if value is None else value
+            except Exception:
+                return default
+
+        def _is_number(value):
+            return isinstance(value, (int, float)) and not isinstance(value, bool)
+
         vertices = Graph.Vertices(graph)
         edges = Graph.Edges(graph)
-
-        nodes = [i for i in range(len(vertices))]
-        if not vertexLabelKey == None:
-            node_labels = [Dictionary.ValueAtKey(Topology.Dictionary(v), vertexLabelKey) for v in vertices]
-        else:
-            node_labels = list(range(len(vertices)))
-        if not vertexColorKey == None:
-            colors = [Dictionary.ValueAtKey(Topology.Dictionary(v), vertexColorKey) for v in vertices]
-        else:
-            colors = [vertexColor for v in vertices]
-        node_titles = [str(n) for n in node_labels]
-        group = ""
-        if not vertexGroupKey == None:
-            colors = []
-            if vertexGroups:
-                if len(vertexGroups) > 0:
-                    if type(vertexGroups[0]) == int or type(vertexGroups[0]) == float:
-                        if not minVertexGroup:
-                            minVertexGroup = min(vertexGroups)
-                        if not maxVertexGroup:
-                            maxVertexGroup = max(vertexGroups)
-                    else:
-                        minVertexGroup = 0
-                        maxVertexGroup = len(vertexGroups) - 1
-            else:
-                minVertexGroup = 0
-                maxVertexGroup = 1
-            for m, v in enumerate(vertices):
-                group = ""
-                d = Topology.Dictionary(v)
-                if d:
-                    try:
-                        group = Dictionary.ValueAtKey(d, key=vertexGroupKey) or None
-                    except:
-                        group = ""
-                try:
-                    if type(group) == int or type(group) == float:
-                        if group < minVertexGroup:
-                            group = minVertexGroup
-                        if group > maxVertexGroup:
-                            group = maxVertexGroup
-                        color = Color.AnyToHex(Color.ByValueInRange(group, minValue=minVertexGroup, maxValue=maxVertexGroup, colorScale=colorScale))
-                    else:
-                        color = Color.AnyToHex(Color.ByValueInRange(vertexGroups.index(group), minValue=minVertexGroup, maxValue=maxVertexGroup, colorScale=colorScale))
-                    colors.append(color)
-                except:
-                    colors.append(vertexColor)
-        net.add_nodes(nodes, label=node_labels, title=node_titles, color=colors)
-
-        for e in edges:
-            edge_label = ""
-            if not edgeLabelKey == None:
-                d = Topology.Dictionary(e)
-                edge_label = Dictionary.ValueAtKey(d, edgeLabelKey)
-                if edge_label == None:
-                    edge_label = ""
-            w = edgeWeight
-            if not edgeWeightKey == None:
-                d = Topology.Dictionary(e)
-                if edgeWeightKey.lower() == "length" or edgeWeightKey.lower() == "distance":
-                    w = Edge.Length(e)
-                else:
-                    weightValue = Dictionary.ValueAtKey(d, edgeWeightKey)
-                if weightValue:
-                    w = weightValue
-            sv = Edge.StartVertex(e)
-            ev = Edge.EndVertex(e)
-            svi = Vertex.Index(sv, vertices, tolerance=tolerance)
-            evi = Vertex.Index(ev, vertices, tolerance=tolerance)
-            if (not svi == None) and (not evi == None):
-                net.add_edge(svi, evi, weight=w, label=edge_label)
-        net.inherit_edge_colors(False)
-        
-        # add neighbor data to node hover data and compute vertexSize
-        if showNeighbours == True or not vertexSizeKey == None:
-            for i, node in enumerate(net.nodes):
-                if showNeighbours == True:
-                    neighbors = list(net.neighbors(node["id"]))
-                    neighbor_labels = [str(net.nodes[n]["id"])+": "+str(net.nodes[n]["label"]) for n in neighbors]
-                    node["title"] = str(node["id"])+": "+node["title"]+"\n"
-                    node["title"] += "Neighbors:\n" + "\n".join(neighbor_labels)
-                vs = vertexSize
-                if not vertexSizeKey == None:
-                    d = Topology.Dictionary(vertices[i])
-                    if vertexSizeKey.lower() == "neighbours" or vertexSizeKey.lower() == "degree":
-                        temp_vs = Graph.VertexDegree(graph, vertices[i])
-                    else:
-                        temp_vs = Dictionary.ValueAtKey(vertices[i], vertexSizeKey)
-                    if temp_vs:
-                        vs = temp_vs
-                node["value"] = vs
-        
-        # Make sure the file extension is .html
-        ext = path[len(path)-5:len(path)]
-        if ext.lower() != ".html":
-            path = path+".html"
-        if not overwrite and exists(path):
-            print("Graph.PyvisGraph - Error: a file already exists at the specified path and overwrite is set to False. Returning None.")
+        if not vertices:
+            warnings.warn("Graph.PyvisGraph - Error: The input graph has no vertices. Returning None.")
             return None
-        if overwrite == True:
-            net.save_graph(path)
-        net.show_buttons()
-        net.show(path, notebook=notebook)
+
+        net = Network(
+            height=str(height) + "px",
+            width="100%",
+            bgcolor=backgroundColor,
+            font_color=fontColor,
+            select_menu=selectMenu,
+            filter_menu=filterMenu,
+            cdn_resources="remote",
+            notebook=notebook
+        )
+        if notebook:
+            try:
+                net.prep_notebook()
+            except Exception:
+                pass
+
+        # Cache dictionaries once
+        vertex_dicts = [Topology.Dictionary(v) for v in vertices]
+        edge_dicts = [Topology.Dictionary(e) for e in edges]
+
+        # Stable node ids
+        node_ids = list(range(len(vertices)))
+
+        # Labels
+        if vertexLabelKey is not None:
+            node_labels = [str(_dict_value(vertex_dicts[i], vertexLabelKey, vertexLabel)) for i in range(len(vertices))]
+        else:
+            node_labels = [str(vertexLabel) if vertexLabel != "" else str(i) for i in node_ids]
+
+        # Titles
+        node_titles = [str(label) for label in node_labels]
+
+        # Colors
+        colors = [vertexColor for _ in vertices]
+
+        if vertexColorKey is not None:
+            colors = [str(_dict_value(vertex_dicts[i], vertexColorKey, vertexColor)) for i in range(len(vertices))]
+
+        if vertexGroupKey is not None:
+            numeric_groups = []
+            categorical_groups = []
+            group_values = []
+
+            for i, v in enumerate(vertices):
+                group_value = _dict_value(vertex_dicts[i], vertexGroupKey, None)
+                group_values.append(group_value)
+                if _is_number(group_value):
+                    numeric_groups.append(group_value)
+                elif group_value is not None:
+                    categorical_groups.append(group_value)
+
+            if vertexGroups is not None and len(vertexGroups) > 0:
+                if all(_is_number(g) for g in vertexGroups):
+                    gmin = minVertexGroup if minVertexGroup is not None else min(vertexGroups)
+                    gmax = maxVertexGroup if maxVertexGroup is not None else max(vertexGroups)
+                    for i, group_value in enumerate(group_values):
+                        try:
+                            if _is_number(group_value):
+                                value = max(gmin, min(gmax, group_value))
+                                colors[i] = Color.AnyToHex(
+                                    Color.ByValueInRange(value, minValue=gmin, maxValue=gmax, colorScale=colorScale)
+                                )
+                            else:
+                                colors[i] = vertexColor
+                        except Exception:
+                            colors[i] = vertexColor
+                else:
+                    categories = list(vertexGroups)
+                    gmin = 0 if minVertexGroup is None else minVertexGroup
+                    gmax = (len(categories) - 1) if maxVertexGroup is None else maxVertexGroup
+                    for i, group_value in enumerate(group_values):
+                        try:
+                            if group_value in categories:
+                                idx = categories.index(group_value)
+                                colors[i] = Color.AnyToHex(
+                                    Color.ByValueInRange(idx, minValue=gmin, maxValue=gmax, colorScale=colorScale)
+                                )
+                            else:
+                                colors[i] = vertexColor
+                        except Exception:
+                            colors[i] = vertexColor
+            else:
+                if len(numeric_groups) > 0:
+                    gmin = minVertexGroup if minVertexGroup is not None else min(numeric_groups)
+                    gmax = maxVertexGroup if maxVertexGroup is not None else max(numeric_groups)
+                    if gmin == gmax:
+                        gmax = gmin + 1
+                    for i, group_value in enumerate(group_values):
+                        try:
+                            if _is_number(group_value):
+                                value = max(gmin, min(gmax, group_value))
+                                colors[i] = Color.AnyToHex(
+                                    Color.ByValueInRange(value, minValue=gmin, maxValue=gmax, colorScale=colorScale)
+                                )
+                            else:
+                                colors[i] = vertexColor
+                        except Exception:
+                            colors[i] = vertexColor
+                elif len(categorical_groups) > 0:
+                    categories = list(dict.fromkeys(categorical_groups))
+                    gmin = 0
+                    gmax = max(1, len(categories) - 1)
+                    for i, group_value in enumerate(group_values):
+                        try:
+                            if group_value in categories:
+                                idx = categories.index(group_value)
+                                colors[i] = Color.AnyToHex(
+                                    Color.ByValueInRange(idx, minValue=gmin, maxValue=gmax, colorScale=colorScale)
+                                )
+                            else:
+                                colors[i] = vertexColor
+                        except Exception:
+                            colors[i] = vertexColor
+
+        # Sizes
+        node_values = [vertexSize for _ in vertices]
+        if vertexSizeKey is not None:
+            vsk = vertexSizeKey.lower()
+            if vsk in ["degree", "neighbours", "neighbors"]:
+                for i, v in enumerate(vertices):
+                    try:
+                        node_values[i] = Graph.VertexDegree(graph, v)
+                    except Exception:
+                        node_values[i] = vertexSize
+            else:
+                for i in range(len(vertices)):
+                    try:
+                        node_values[i] = _dict_value(vertex_dicts[i], vertexSizeKey, vertexSize)
+                    except Exception:
+                        node_values[i] = vertexSize
+
+        # Add nodes one by one so value is guaranteed
+        for i in node_ids:
+            net.add_node(
+                i,
+                label=node_labels[i],
+                title=node_titles[i],
+                color=colors[i],
+                value=node_values[i]
+            )
+
+        # Faster lookup than repeated Vertex.Index calls
+        vertex_index_map = {}
+        for i, v in enumerate(vertices):
+            key = tuple(Vertex.Coordinates(v, mantissa=6))
+            vertex_index_map[key] = i
+
+        def _vertex_index(v):
+            key = tuple(Vertex.Coordinates(v, mantissa=6))
+            idx = vertex_index_map.get(key, None)
+            if idx is not None:
+                return idx
+            return Vertex.Index(v, vertices, tolerance=tolerance)
+
+        for i, e in enumerate(edges):
+            d = edge_dicts[i]
+
+            if edgeColorKey is not None:
+                edge_color = _dict_value(d, edgeColorKey, edgeColor)
+            else:
+                edge_color = edgeColor
+
+            if edgeLabelKey is not None:
+                edge_label = _dict_value(d, edgeLabelKey, edgeLabel)
+            else:
+                edge_label = edgeLabel
+
+            edge_weight = edgeWeight
+            if edgeWeightKey is not None:
+                ewk = edgeWeightKey.lower()
+                if ewk == "length" or ewk == "distance":
+                    try:
+                        edge_weight = Edge.Length(e)
+                    except Exception:
+                        edge_weight = edgeWeight
+                else:
+                    edge_weight = _dict_value(d, edgeWeightKey, edgeWeight)
+
+            try:
+                sv = Edge.StartVertex(e)
+                ev = Edge.EndVertex(e)
+                svi = _vertex_index(sv)
+                evi = _vertex_index(ev)
+                if svi is not None and evi is not None:
+                    net.add_edge(svi, evi, weight=edge_weight, label=str(edge_label), color=edge_color)
+            except Exception:
+                continue
+
+        try:
+            net.inherit_edge_colors(False)
+        except Exception:
+            pass
+
+        # Add neighbor data to hover text
+        if showNeighbours:
+            for node in net.nodes:
+                try:
+                    neighbors = list(net.neighbors(node["id"]))
+                    neighbor_labels = [str(net.nodes[n]["id"]) + ": " + str(net.nodes[n]["label"]) for n in neighbors]
+                    node["title"] = str(node["id"]) + ": " + str(node["title"]) + "\n"
+                    node["title"] += "Neighbors:\n" + "\n".join(neighbor_labels)
+                except Exception:
+                    pass
+
+        # Make sure the file extension is .html
+        if not isinstance(path, str) or len(path.strip()) == 0:
+            warnings.warn("Graph.PyvisGraph - Error: The input path is not valid. Returning None.")
+            return None
+        if not path.lower().endswith(".html"):
+            path = path + ".html"
+
+        if (not overwrite) and exists(path):
+            print("Graph.PyvisGraph - Error: A file already exists at the specified path and overwrite is set to False. Returning None.")
+            return None
+
+        try:
+            net.show_buttons()
+        except Exception:
+            pass
+
+        try:
+            net.show(path, notebook=notebook)
+        except Exception:
+            try:
+                net.save_graph(path)
+            except Exception:
+                warnings.warn("Graph.PyvisGraph - Error: Could not save or display the graph. Returning None.")
+                return None
+
         return None
+
+
+
+    # @staticmethod
+    # def PyvisGraph(graph, path,
+    #                overwrite: bool = True,
+    #                height: int = 900,
+    #                backgroundColor: str = "white",
+    #                fontColor: str = "black", notebook: bool = False,
+    #                vertexSize: int = 6, vertexSizeKey: str = None,
+    #                vertexColor: str = "black", vertexColorKey: str = None,
+    #                vertexLabel: str = "", vertexLabelKey: str = None,
+    #                vertexGroupKey: str = None, vertexGroups: list = None, minVertexGroup: float = None, maxVertexGroup: float = None,
+    #                edgeLabel: str = "", edgeLabelKey: str = None,
+    #                edgeWeight: int = 0, edgeWeightKey: str = None,
+    #                edgeColor: str = "black", edgeColorKey: str = None,
+    #                showNeighbours: bool = True, selectMenu: bool = True,
+    #                filterMenu: bool = True, colorScale: str = "viridis", tolerance: float = 0.0001):
+    #     """
+    #     Displays a pyvis graph. See https://pyvis.readthedocs.io/.
+
+    #     Parameters
+    #     ----------
+    #     graph : topologic_core.Graph
+    #         The input graph.
+    #     path : str
+    #         The desired file path to the HTML file into which to save the pyvis graph.
+    #     overwrite : bool , optional
+    #         If set to True, the HTML file is overwritten.
+    #     height : int , optional
+    #         The desired figure height in pixels. Default is 900 pixels.
+    #     backgroundColor : str, optional
+    #         The desired background color for the figure. This can be a named color or a hexadecimal value. Default is 'white'.
+    #     fontColor : str , optional
+    #         The desired font color for the figure. This can be a named color or a hexadecimal value. Default is 'black'.
+    #     notebook : bool , optional
+    #         If set to True, the figure will be targeted at a Jupyter Notebook. Note that this is not working well. Pyvis has bugs. Default is False.
+        
+    #     vertexSize : int , optional
+    #         The desired default vertex size. Default is 6.
+    #     vertexSizeKey : str , optional
+    #         If not set to None, the vertex size will be derived from the dictionary value set at this key. If set to "degree", the size of the vertex will be determined by its degree (number of neighbors). Default is None.
+    #     vertexColor : str , optional
+    #         The desired default vertex color. his can be a named color or a hexadecimal value. Default is 'black'.
+    #     vertexColorKey : str , optional
+    #         If not set to None, the vertex color will be derived from the dictionary value set at this key. Default is None.
+    #     vertexLabel : str , optional
+    #         The default vertex label. Default is "".
+    #     vertexLabelKey : str , optional
+    #         If not set to None, the vertex label will be derived from the dictionary value set at this key. Default is None.
+    #     vertexGroupKey : str , optional
+    #         If not set to None, the vertex color will be determined by the group the vertex belongs to as derived from the value set at this key. Default is None.
+    #     vertexGroups : list , optional
+    #         The list of all possible vertex groups. This will help in vertex coloring. Default is None.
+    #     minVertexGroup : int or float , optional
+    #         If the vertex groups are numeric, specify the minimum value you wish to consider for vertex coloring. Default is None.
+    #     maxVertexGroup : int or float , optional
+    #         If the vertex groups are numeric, specify the maximum value you wish to consider for vertex coloring. Default is None.
+        
+    #     edgeWeight : int , optional
+    #         The desired default weight of the edge. This determines its thickness. Default is 0.
+    #     edgeWeightKey : str, optional
+    #         If not set to None, the edge weight will be derived from the dictionary value set at this key. If set to "length" or "distance", the weight of the edge will be determined by its geometric length. Default is None.
+    #     edgeColor : string , optional
+    #         The desired default color of the edge. Default is "black.
+    #     edgeColorKey : str, optional
+    #         If not set to None, the edge color will be derived from the dictionary value set at this key. Default is None.
+    #     edgeLabelKey : str , optional
+    #         If not set to None, the edge label will be derived from the dictionary value set at this key. Default is None.
+        
+    #     showNeighbors : bool , optional
+    #         If set to True, a list of neighbors is shown when you hover over a vertex. Default is True.
+    #     selectMenu : bool , optional
+    #         If set to True, a selection menu will be displayed. Default is True
+    #     filterMenu : bool , optional
+    #         If set to True, a filtering menu will be displayed. Default is True.
+    #     colorScale : str , optional
+    #         The desired type of plotly color scales to use (e.g. "viridis", "plasma"). Default is "viridis". For a full list of names, see https://plotly.com/python/builtin-colorscales/.
+    #     tolerance : float , optional
+    #         The desired tolerance. Default is 0.0001.
+    #     Returns
+    #     -------
+    #     None
+    #         The pyvis graph is displayed either inline (notebook mode) or in a new browser window or tab.
+
+    #     """
+    #     from topologicpy.Vertex import Vertex
+    #     from topologicpy.Edge import Edge
+    #     from topologicpy.Topology import Topology
+    #     from topologicpy.Dictionary import Dictionary
+    #     from topologicpy.Color import Color
+    #     from os.path import exists
+
+    #     try:
+    #         from pyvis.network import Network
+    #     except:
+    #         print("Graph.PyvisGraph - Information: Installing required pyvis library.")
+    #         try:
+    #             os.system("pip install pyvis")
+    #         except:
+    #             os.system("pip install pyvis --user")
+    #         try:
+    #             from pyvis.network import Network
+    #             print("Graph.PyvisGraph - Information: pyvis library installed correctly.")
+    #         except:
+    #             warnings.warn("Graph - Error: Could not import pyvis. Please try to install pyvis manually. Returning None.")
+    #             return None
+        
+    #     net = Network(height=str(height)+"px", width="100%", bgcolor=backgroundColor, font_color=fontColor, select_menu=selectMenu, filter_menu=filterMenu, cdn_resources="remote", notebook=notebook)
+    #     if notebook == True:
+    #         net.prep_notebook()
+        
+    #     vertices = Graph.Vertices(graph)
+    #     edges = Graph.Edges(graph)
+
+    #     nodes = [i for i in range(len(vertices))]
+    #     if not vertexLabelKey == None:
+    #         node_labels = [Dictionary.ValueAtKey(Topology.Dictionary(v), vertexLabelKey, vertexLabel) for v in vertices]
+
+    #     else:
+    #         node_labels = list(range(len(vertices)))
+    #     if not vertexColorKey == None:
+    #         colors = [Dictionary.ValueAtKey(Topology.Dictionary(v), vertexColorKey, vertexColor) for v in vertices]
+    #     else:
+    #         colors = [vertexColor for v in vertices]
+    #     node_titles = [str(n) for n in node_labels]
+    #     group = ""
+    #     if not vertexGroupKey == None:
+    #         colors = []
+    #         if vertexGroups:
+    #             if len(vertexGroups) > 0:
+    #                 if type(vertexGroups[0]) == int or type(vertexGroups[0]) == float:
+    #                     if not minVertexGroup:
+    #                         minVertexGroup = min(vertexGroups)
+    #                     if not maxVertexGroup:
+    #                         maxVertexGroup = max(vertexGroups)
+    #                 else:
+    #                     minVertexGroup = 0
+    #                     maxVertexGroup = len(vertexGroups) - 1
+    #         else:
+    #             minVertexGroup = 0
+    #             maxVertexGroup = 1
+    #         for m, v in enumerate(vertices):
+    #             group = ""
+    #             d = Topology.Dictionary(v)
+    #             if d:
+    #                 try:
+    #                     group = Dictionary.ValueAtKey(d, key=vertexGroupKey) or None
+    #                 except:
+    #                     group = ""
+    #             try:
+    #                 if type(group) == int or type(group) == float:
+    #                     if group < minVertexGroup:
+    #                         group = minVertexGroup
+    #                     if group > maxVertexGroup:
+    #                         group = maxVertexGroup
+    #                     color = Color.AnyToHex(Color.ByValueInRange(group, minValue=minVertexGroup, maxValue=maxVertexGroup, colorScale=colorScale))
+    #                 else:
+    #                     color = Color.AnyToHex(Color.ByValueInRange(vertexGroups.index(group), minValue=minVertexGroup, maxValue=maxVertexGroup, colorScale=colorScale))
+    #                 colors.append(color)
+    #             except:
+    #                 colors.append(vertexColor)
+    #     net.add_nodes(nodes, label=node_labels, title=node_titles, color=colors)
+
+    #     for e in edges:
+    #         d = Topology.Dictionary(e)
+    #         edge_color = Dictionary.ValueAtKey(d, edgeColorKey, edgeColor)
+    #         edge_label = Dictionary.ValueAtKey(d, edgeLabelKey, edgeLabel)
+    #         edge_weight = edgeWeight
+    #         if not edgeWeightKey == None:
+    #             if edgeWeightKey.lower() == "length" or edgeWeightKey.lower() == "distance":
+    #                 edge_weight = Edge.Length(e)
+    #             else:
+    #                 edge_weight = Dictionary.ValueAtKey(d, edgeWeightKey, edgeWeight)
+    #         sv = Edge.StartVertex(e)
+    #         ev = Edge.EndVertex(e)
+    #         svi = Vertex.Index(sv, vertices, tolerance=tolerance)
+    #         evi = Vertex.Index(ev, vertices, tolerance=tolerance)
+    #         if (not svi == None) and (not evi == None):
+    #             net.add_edge(svi, evi, weight=edge_weight, label=edge_label, color=edge_color)
+    #     net.inherit_edge_colors(False)
+        
+    #     # add neighbor data to node hover data and compute vertexSize
+    #     if showNeighbours == True or not vertexSizeKey == None:
+    #         for i, node in enumerate(net.nodes):
+    #             if showNeighbours == True:
+    #                 neighbors = list(net.neighbors(node["id"]))
+    #                 neighbor_labels = [str(net.nodes[n]["id"])+": "+str(net.nodes[n]["label"]) for n in neighbors]
+    #                 node["title"] = str(node["id"])+": "+node["title"]+"\n"
+    #                 node["title"] += "Neighbors:\n" + "\n".join(neighbor_labels)
+    #             if not vertexSizeKey == None:
+    #                 d = Topology.Dictionary(vertices[i])
+    #                 if vertexSizeKey.lower() == "neighbours" or vertexSizeKey.lower() == "degree":
+    #                     vs = Graph.VertexDegree(graph, vertices[i])
+    #                 else:
+    #                     vs = Dictionary.ValueAtKey(d, vertexSizeKey, vertexSize)
+    #             node["value"] = vs
+        
+    #     # Make sure the file extension is .html
+    #     ext = path[len(path)-5:len(path)]
+    #     if ext.lower() != ".html":
+    #         path = path+".html"
+    #     if not overwrite and exists(path):
+    #         print("Graph.PyvisGraph - Error: a file already exists at the specified path and overwrite is set to False. Returning None.")
+    #         return None
+    #     if overwrite == True:
+    #         net.save_graph(path)
+    #     net.show_buttons()
+    #     net.show(path, notebook=notebook)
+    #     return None
 
     @staticmethod
     def Quotient(topology,
