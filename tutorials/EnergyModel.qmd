@@ -34,8 +34,11 @@ print("\nDONE")
 
 ```{python}
 import openstudio
-result = getattr(openstudio, "openStudioVersion", None)
-result()
+import subprocess
+x = "openStudioVersion"
+result = getattr(openstudio, x, None)
+print(f"{x} = {result()}")
+result = subprocess.run("energyplus -v", shell=True)
 ```
 
 ## Check software versions
@@ -71,7 +74,6 @@ outputFolder.mkdir(exist_ok=True)
 
 assert buildingPath.is_file()
 weatherFilePath, designDayFilePath, buildingPath, shadingPath, osModelPath, outputFolder = [str(x.resolve()) for x in [weatherFilePath, designDayFilePath, buildingPath, shadingPath, osModelPath, outputFolder]]
-
 ```
 
 ```{python}
@@ -142,7 +144,7 @@ print("\nDONE")
 #status01 = EnergyModel.ExportToOSM(model, outputFolder+"/EnergyModel.osm", overwrite=True)
 #status02 = EnergyModel.ExportToGbXML(model, outputFolder+"/EnergyModel.xml", overwrite=True)
 #status03 = Honeybee.ExportToHBJSON(hb_model, outputFolder+"/EnergyModel.hbjson", overwrite=True)
-print("\DONE")
+print(r"\DONE")
 ```
 
 ## Run the Simulation
@@ -156,6 +158,10 @@ with out:
     model = EnergyModel.Run(model, weatherFilePath=weatherFilePath,
                             osBinaryPath=osBinaryPath, outputFolder=outputFolder)
 print("\nDONE")
+```
+
+```{python}
+outputFolder
 ```
 
 ## Get the space names used in the energy model
@@ -209,6 +215,11 @@ values = EnergyModel.Query(model,
                           rowNames = names,
                           units = units)
 print("\nDONE")
+```
+
+```{python}
+f_sql = model.sqlFile().get()
+f_sql.path()
 ```
 
 ## Apply the values to the bottom face(s) of each space/cell.

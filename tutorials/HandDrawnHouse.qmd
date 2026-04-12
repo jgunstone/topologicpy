@@ -133,4 +133,3 @@ Topology.Show(plan)
 ## Add windows
 
 ... I think I've approached this wrong... the walls must be made up of walls and windows... 
-
