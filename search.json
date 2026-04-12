@@ -4,18 +4,14 @@
     "href": "MEP.html",
     "title": "MEP",
     "section": "",
-    "text": "from topologicpy.Vertex import Vertex\nfrom topologicpy.Edge import Edge\nfrom topologicpy.Wire import Wire\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Dictionary import Dictionary\nfrom topologicpy.Graph import Graph\nfrom topologicpy.Plotly import Plotly\n\n\nedges_file = open(\"edges.csv\")\nlines = edges_file.readlines()\nedges = []\nfor line in lines:\n    tokens = line.split(\",\")\n    edge_id, sx, sy, sz, ex, ey, ez = tokens\n    sv = Vertex.ByCoordinates(float(sx), float(sy), float(sz))\n    ev = Vertex.ByCoordinates(float(ex), float(ey), float(ez))\n    e = Edge.ByVertices([sv,ev])\n    d = Dictionary.ByKeyValue(\"id\", edge_id)\n    e = Topology.SetDictionary(e, d)\n    edges.append(e)\n\nnodes_file = open(\"nodes.csv\")\nlines = nodes_file.readlines()\nvertices = []\nfor line in lines:\n    tokens = line.split(\",\")\n    v_id = tokens[0]\n    x = float(tokens[1])\n    y = float(tokens[2])\n    z = float(tokens[3])\n    v = Vertex.ByCoordinates(x,y,z)\n    adj_edges = tokens[4:]\n    adj_edges = [e.strip(\"\\n\") for e in adj_edges]\n    d = Dictionary.ByKeysValues([\"id\",\"adj_edges\"], [v_id, adj_edges])\n    v = Topology.SetDictionary(v, d)\n    vertices.append(v)\n\ncluster = Cluster.ByTopologies(vertices+edges)\nTopology.Show(cluster)\nnew_edges = []\nfor i, v in enumerate(vertices):\n    v_d = Topology.Dictionary(v)\n    edge_ids = Dictionary.ValueAtKey(v_d, \"adj_edges\")\n    for edge_id in edge_ids:\n        for edge in edges:\n            e_d = Topology.Dictionary(edge)\n            e_id = Dictionary.ValueAtKey(e_d, \"id\")\n            if e_id == edge_id:\n                nearest_v = Vertex.NearestVertex(v, edge, useKDTree=False)\n                new_edges.append(Edge.ByVertices([nearest_v, v]))\n\n                                                    \n\n\n\ncluster = Cluster.ByTopologies(edges+new_edges)\nwire = Topology.SelfMerge(cluster)\nw_vertices = Topology.Vertices(wire)\nw_edges = Topology.Edges(wire)\ng = Graph.ByVerticesEdges(w_vertices, w_edges)\n\nv1 = Graph.NearestVertex(g, Vertex.ByCoordinates(-1,-0.5,0.5))\nv2 = Graph.NearestVertex(g, Vertex.ByCoordinates(1,0.5,-0.5))\nshortest_path = Graph.ShortestPath(g, v1, v2, edgeKey=\"length\")\ndata01 = Plotly.DataByTopology(shortest_path, edgeWidth=6, edgeColor=\"red\", vertexSize=3)\ndata02 = Plotly.DataByTopology(Graph.Topology(g))\nfigure = Plotly.FigureByData(data01+data02)\nPlotly.Show(figure)",
-    "crumbs": [
-      "topologicpy-tutorials",
-      "MEP"
-    ]
+    "text": "from topologicpy.Vertex import Vertex\nfrom topologicpy.Edge import Edge\nfrom topologicpy.Wire import Wire\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Dictionary import Dictionary\nfrom topologicpy.Graph import Graph\nfrom topologicpy.Plotly import Plotly\n\n\nedges_file = open(\"edges.csv\")\nlines = edges_file.readlines()\nedges = []\nfor line in lines:\n    tokens = line.split(\",\")\n    edge_id, sx, sy, sz, ex, ey, ez = tokens\n    sv = Vertex.ByCoordinates(float(sx), float(sy), float(sz))\n    ev = Vertex.ByCoordinates(float(ex), float(ey), float(ez))\n    e = Edge.ByVertices([sv,ev])\n    d = Dictionary.ByKeyValue(\"id\", edge_id)\n    e = Topology.SetDictionary(e, d)\n    edges.append(e)\n\nnodes_file = open(\"nodes.csv\")\nlines = nodes_file.readlines()\nvertices = []\nfor line in lines:\n    tokens = line.split(\",\")\n    v_id = tokens[0]\n    x = float(tokens[1])\n    y = float(tokens[2])\n    z = float(tokens[3])\n    v = Vertex.ByCoordinates(x,y,z)\n    adj_edges = tokens[4:]\n    adj_edges = [e.strip(\"\\n\") for e in adj_edges]\n    d = Dictionary.ByKeysValues([\"id\",\"adj_edges\"], [v_id, adj_edges])\n    v = Topology.SetDictionary(v, d)\n    vertices.append(v)\n\ncluster = Cluster.ByTopologies(vertices+edges)\nTopology.Show(cluster)\nnew_edges = []\nfor i, v in enumerate(vertices):\n    v_d = Topology.Dictionary(v)\n    edge_ids = Dictionary.ValueAtKey(v_d, \"adj_edges\")\n    for edge_id in edge_ids:\n        for edge in edges:\n            e_d = Topology.Dictionary(edge)\n            e_id = Dictionary.ValueAtKey(e_d, \"id\")\n            if e_id == edge_id:\n                nearest_v = Vertex.NearestVertex(v, edge, useKDTree=False)\n                new_edges.append(Edge.ByVertices([nearest_v, v]))\n\n                                                    \n\n\n\ncluster = Cluster.ByTopologies(edges+new_edges)\nwire = Topology.SelfMerge(cluster)\nw_vertices = Topology.Vertices(wire)\nw_edges = Topology.Edges(wire)\ng = Graph.ByVerticesEdges(w_vertices, w_edges)\n\nv1 = Graph.NearestVertex(g, Vertex.ByCoordinates(-1,-0.5,0.5))\nv2 = Graph.NearestVertex(g, Vertex.ByCoordinates(1,0.5,-0.5))\nshortest_path = Graph.ShortestPath(g, v1, v2, edgeKey=\"length\")\ndata01 = Plotly.DataByTopology(shortest_path, edgeWidth=6, edgeColor=\"red\", vertexSize=3)\ndata02 = Plotly.DataByTopology(Graph.Topology(g))\nfigure = Plotly.FigureByData(data01+data02)\nPlotly.Show(figure)"
   },
   {
     "objectID": "EnergyModel.html",
     "href": "EnergyModel.html",
     "title": "Energy Model with Openstudio",
     "section": "",
-    "text": "# Import the needed classes\nfrom topologicpy.Vertex import Vertex\nfrom topologicpy.Face import Face\nfrom topologicpy.Cell import Cell\nfrom topologicpy.CellComplex import CellComplex\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Dictionary import Dictionary\nfrom topologicpy.Color import Color\nfrom topologicpy.Plotly import Plotly\nfrom topologicpy.EnergyModel import EnergyModel\nfrom topologicpy.Helper import Helper\nprint(\"\\nDONE\")\n\n\nDONE\n\n\n\nimport openstudio\nresult = getattr(openstudio, \"openStudioVersion\", None)\nresult()\n\n'3.11.0'",
+    "text": "# Import the needed classes\nfrom topologicpy.Vertex import Vertex\nfrom topologicpy.Face import Face\nfrom topologicpy.Cell import Cell\nfrom topologicpy.CellComplex import CellComplex\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Dictionary import Dictionary\nfrom topologicpy.Color import Color\nfrom topologicpy.Plotly import Plotly\nfrom topologicpy.EnergyModel import EnergyModel\nfrom topologicpy.Helper import Helper\nprint(\"\\nDONE\")\n\n\nDONE\n\n\n\nimport openstudio\nimport subprocess\nx = \"openStudioVersion\"\nresult = getattr(openstudio, x, None)\nprint(f\"{x} = {result()}\")\nresult = subprocess.run(\"energyplus -v\", shell=True)\n\nopenStudioVersion = 3.11.0\nEnergyPlus, Version 26.1.0-6f2e40d102",
     "crumbs": [
       "topologicpy-tutorials",
       "Energy Model with Openstudio"
@@ -26,7 +22,7 @@
     "href": "EnergyModel.html#import-the-needed-classes",
     "title": "Energy Model with Openstudio",
     "section": "",
-    "text": "# Import the needed classes\nfrom topologicpy.Vertex import Vertex\nfrom topologicpy.Face import Face\nfrom topologicpy.Cell import Cell\nfrom topologicpy.CellComplex import CellComplex\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Dictionary import Dictionary\nfrom topologicpy.Color import Color\nfrom topologicpy.Plotly import Plotly\nfrom topologicpy.EnergyModel import EnergyModel\nfrom topologicpy.Helper import Helper\nprint(\"\\nDONE\")\n\n\nDONE\n\n\n\nimport openstudio\nresult = getattr(openstudio, \"openStudioVersion\", None)\nresult()\n\n'3.11.0'",
+    "text": "# Import the needed classes\nfrom topologicpy.Vertex import Vertex\nfrom topologicpy.Face import Face\nfrom topologicpy.Cell import Cell\nfrom topologicpy.CellComplex import CellComplex\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Dictionary import Dictionary\nfrom topologicpy.Color import Color\nfrom topologicpy.Plotly import Plotly\nfrom topologicpy.EnergyModel import EnergyModel\nfrom topologicpy.Helper import Helper\nprint(\"\\nDONE\")\n\n\nDONE\n\n\n\nimport openstudio\nimport subprocess\nx = \"openStudioVersion\"\nresult = getattr(openstudio, x, None)\nprint(f\"{x} = {result()}\")\nresult = subprocess.run(\"energyplus -v\", shell=True)\n\nopenStudioVersion = 3.11.0\nEnergyPlus, Version 26.1.0-6f2e40d102",
     "crumbs": [
       "topologicpy-tutorials",
       "Energy Model with Openstudio"
@@ -37,7 +33,7 @@
     "href": "EnergyModel.html#check-software-versions",
     "title": "Energy Model with Openstudio",
     "section": "Check software versions",
-    "text": "Check software versions\n\nimport sys\nprint(\"This workflow was designed and verified to work with python 3.11, TopologicPy 0.8.54 and OpenStudio SDK 3.10.0.\\n\")\npy_version = sys.version.split()[0]\nprint(\"Python version:\", py_version)\n\nprint(\"TopologicPy Version:\", Helper.Version(check=False))\nprint(\"OpenStudio SDK Version:\", EnergyModel.Version(check=False))\nprint(\" \")\nprint(\"TopologicPy Version:\", Helper.Version(check=True))\nprint(\"OpenStudio SDK Version:\", EnergyModel.Version(check=True))\nprint(\"\\nDONE\")\n\nThis workflow was designed and verified to work with python 3.11, TopologicPy 0.8.54 and OpenStudio SDK 3.10.0.\n\nPython version: 3.13.12\nTopologicPy Version: 0.9.12\nOpenStudio SDK Version: 3.11.0\n \nTopologicPy Version: The version that you are using (0.9.12) is OLDER than the latest version (0.9.14) from PyPI. Please consider upgrading to the latest version.\nOpenStudio SDK Version: The version that you are using (3.11.0) is EQUAL TO the latest version available on PyPI.\n\nDONE",
+    "text": "Check software versions\n\nimport sys\nprint(\"This workflow was designed and verified to work with python 3.11, TopologicPy 0.8.54 and OpenStudio SDK 3.10.0.\\n\")\npy_version = sys.version.split()[0]\nprint(\"Python version:\", py_version)\n\nprint(\"TopologicPy Version:\", Helper.Version(check=False))\nprint(\"OpenStudio SDK Version:\", EnergyModel.Version(check=False))\nprint(\" \")\nprint(\"TopologicPy Version:\", Helper.Version(check=True))\nprint(\"OpenStudio SDK Version:\", EnergyModel.Version(check=True))\nprint(\"\\nDONE\")\n\nThis workflow was designed and verified to work with python 3.11, TopologicPy 0.8.54 and OpenStudio SDK 3.10.0.\n\nPython version: 3.13.13\nTopologicPy Version: 0.9.14\nOpenStudio SDK Version: 3.11.0\n \nTopologicPy Version: The version that you are using (0.9.14) is OLDER than the latest version (0.9.18) from PyPI. Please consider upgrading to the latest version.\nOpenStudio SDK Version: The version that you are using (3.11.0) is EQUAL TO the latest version available on PyPI.\n\nDONE",
     "crumbs": [
       "topologicpy-tutorials",
       "Energy Model with Openstudio"
@@ -70,7 +66,7 @@
     "href": "EnergyModel.html#create-an-energy-model",
     "title": "Energy Model with Openstudio",
     "section": "Create an Energy Model",
-    "text": "Create an Energy Model\n\nmodel = EnergyModel.ByTopology(building=building,\n                               shadingSurfaces = shadingSurfaces,\n                               osModelPath=osModelPath,\n                               weatherFilePath=weatherFilePath,\n                               designDayFilePath=designDayFilePath,\n                               glazingRatio=0.25)\n\nprint(\"THIS IS A SNIPPET OF THE OSM MODEL TO VERIFY THAT IT WORKED.\")\nprint(str(model)[:900])\nprint(\"\\nDONE\")\n\nTHIS IS A SNIPPET OF THE OSM MODEL TO VERIFY THAT IT WORKED.\n\nOS:Version,\n  {d3b3fa80-a76f-4428-8ef9-00a7915aae43}, !- Handle\n  3.11.0;                                 !- Version Identifier\n\nOS:Building,\n  {08678ddd-175a-469b-9626-2f02c40b6916}, ! Handle\n  TopologicBuilding,                      ! Name\n  ,                                       ! Building Type\n  0,                                      ! North Axis\n  3.00000016666667,                       ! Nominal Floor to Floor Height\n  {23783b22-e086-4ec3-9e58-7b592355f93c}, ! Space Type Name\n  {8d276ca2-ac82-489c-8e07-395b89456514}, ! Default Construction Set Name\n  {14c603bd-dcaa-469b-be33-8c0fd5024bd4}, ! Default Schedule Set Name\n  6,                                      !- Standards Number of Stories\n  ,                                       !- Standards Number of Above Ground Stories\n  ,                                       !- Standards Template\n  Commercial;                             !\n\nDONE",
+    "text": "Create an Energy Model\n\nmodel = EnergyModel.ByTopology(building=building,\n                               shadingSurfaces = shadingSurfaces,\n                               osModelPath=osModelPath,\n                               weatherFilePath=weatherFilePath,\n                               designDayFilePath=designDayFilePath,\n                               glazingRatio=0.25)\n\nprint(\"THIS IS A SNIPPET OF THE OSM MODEL TO VERIFY THAT IT WORKED.\")\nprint(str(model)[:900])\nprint(\"\\nDONE\")\n\nTHIS IS A SNIPPET OF THE OSM MODEL TO VERIFY THAT IT WORKED.\n\nOS:Version,\n  {986dc50a-a5dd-4be0-8806-1d45c9beea2e}, !- Handle\n  3.11.0;                                 !- Version Identifier\n\nOS:Building,\n  {08678ddd-175a-469b-9626-2f02c40b6916}, ! Handle\n  TopologicBuilding,                      ! Name\n  ,                                       ! Building Type\n  0,                                      ! North Axis\n  3.00000016666667,                       ! Nominal Floor to Floor Height\n  {23783b22-e086-4ec3-9e58-7b592355f93c}, ! Space Type Name\n  {8d276ca2-ac82-489c-8e07-395b89456514}, ! Default Construction Set Name\n  {14c603bd-dcaa-469b-be33-8c0fd5024bd4}, ! Default Schedule Set Name\n  6,                                      !- Standards Number of Stories\n  ,                                       !- Standards Number of Above Ground Stories\n  ,                                       !- Standards Template\n  Commercial;                             !\n\nDONE",
     "crumbs": [
       "topologicpy-tutorials",
       "Energy Model with Openstudio"
@@ -81,7 +77,7 @@
     "href": "EnergyModel.html#create-an-hbjson-model",
     "title": "Energy Model with Openstudio",
     "section": "Create an HBJSON Model",
-    "text": "Create an HBJSON Model\n\nfrom topologicpy.Honeybee import Honeybee\n\nhb_model = Honeybee.ModelByTopology(building, shadingSurfaces)\n\nprint(\"THIS IS A SNIPPET OF THE OSM MODEL TO VERIFY THAT IT WORKED.\")\nprint(str(hb_model)[:900])\nprint(\"\\nDONE\")\n\nTHIS IS A SNIPPET OF THE OSM MODEL TO VERIFY THAT IT WORKED.\nModel: Generic_Building\n\nDONE\n\n\n/home/runner/work/topologicpy/topologicpy/.pixi/envs/dev/lib/python3.13/site-packages/honeybee_radiance_command/_command_util.py:120: SyntaxWarning:\n\ninvalid escape sequence '\\c'\n\n/home/runner/work/topologicpy/topologicpy/.pixi/envs/dev/lib/python3.13/site-packages/honeybee_radiance_command/_command_util.py:123: SyntaxWarning:\n\ninvalid escape sequence '\\8'\n\n/home/runner/work/topologicpy/topologicpy/.pixi/envs/dev/lib/python3.13/site-packages/honeybee_radiance_command/_command_util.py:123: SyntaxWarning:\n\ninvalid escape sequence '\\9'",
+    "text": "Create an HBJSON Model\n\nfrom topologicpy.Honeybee import Honeybee\n\nhb_model = Honeybee.ModelByTopology(building, shadingSurfaces)\n\nprint(\"THIS IS A SNIPPET OF THE OSM MODEL TO VERIFY THAT IT WORKED.\")\nprint(str(hb_model)[:900])\nprint(\"\\nDONE\")\n\nTHIS IS A SNIPPET OF THE OSM MODEL TO VERIFY THAT IT WORKED.\nModel: Generic_Building\n\nDONE\n\n\n/home/runner/work/topologicpy/topologicpy/.pixi/envs/dev/lib/python3.13/site-packages/honeybee_radiance_command/_command_util.py:120: SyntaxWarning: invalid escape sequence '\\c'\n  '\\a': r'\\a', '\\b': r'\\b', '\\c': r'\\c', '\\f': r'\\f', '\\n': r'\\n',\n/home/runner/work/topologicpy/topologicpy/.pixi/envs/dev/lib/python3.13/site-packages/honeybee_radiance_command/_command_util.py:123: SyntaxWarning: invalid escape sequence '\\8'\n  '\\5': r'\\5', '\\6': r'\\6', '\\7': r'\\7', '\\8': r'\\8', '\\9': r'\\9'\n/home/runner/work/topologicpy/topologicpy/.pixi/envs/dev/lib/python3.13/site-packages/honeybee_radiance_command/_command_util.py:123: SyntaxWarning: invalid escape sequence '\\9'\n  '\\5': r'\\5', '\\6': r'\\6', '\\7': r'\\7', '\\8': r'\\8', '\\9': r'\\9'",
     "crumbs": [
       "topologicpy-tutorials",
       "Energy Model with Openstudio"
@@ -92,7 +88,7 @@
     "href": "EnergyModel.html#optional-export-the-model-to-osm-gbxml-or-hbjson",
     "title": "Energy Model with Openstudio",
     "section": "(Optional) Export the model to OSM, GBXML, or HBJSON",
-    "text": "(Optional) Export the model to OSM, GBXML, or HBJSON\n\n# Uncomment these files and change output path if you wish to export the model\n#status01 = EnergyModel.ExportToOSM(model, outputFolder+\"/EnergyModel.osm\", overwrite=True)\n#status02 = EnergyModel.ExportToGbXML(model, outputFolder+\"/EnergyModel.xml\", overwrite=True)\n#status03 = Honeybee.ExportToHBJSON(hb_model, outputFolder+\"/EnergyModel.hbjson\", overwrite=True)\nprint(\"\\DONE\")\n\n\\DONE\n\n\n&lt;&gt;:5: SyntaxWarning:\n\ninvalid escape sequence '\\D'\n\n&lt;&gt;:5: SyntaxWarning:\n\ninvalid escape sequence '\\D'\n\n/tmp/ipykernel_3878/4170888431.py:5: SyntaxWarning:\n\ninvalid escape sequence '\\D'",
+    "text": "(Optional) Export the model to OSM, GBXML, or HBJSON\n\n# Uncomment these files and change output path if you wish to export the model\n#status01 = EnergyModel.ExportToOSM(model, outputFolder+\"/EnergyModel.osm\", overwrite=True)\n#status02 = EnergyModel.ExportToGbXML(model, outputFolder+\"/EnergyModel.xml\", overwrite=True)\n#status03 = Honeybee.ExportToHBJSON(hb_model, outputFolder+\"/EnergyModel.hbjson\", overwrite=True)\nprint(r\"\\DONE\")\n\n\\DONE",
     "crumbs": [
       "topologicpy-tutorials",
       "Energy Model with Openstudio"
@@ -103,7 +99,7 @@
     "href": "EnergyModel.html#run-the-simulation",
     "title": "Energy Model with Openstudio",
     "section": "Run the Simulation",
-    "text": "Run the Simulation\n\n# Run the simulation\nimport ipywidgets as w\nosBinaryPath = \"openstudio\" # this works if it is on the PATH\nout = w.Output()\nwith out:\n    model = EnergyModel.Run(model, weatherFilePath=weatherFilePath,\n                            osBinaryPath=osBinaryPath, outputFolder=outputFolder)\nprint(\"\\nDONE\")\n\n\nDONE",
+    "text": "Run the Simulation\n\n# Run the simulation\nimport ipywidgets as w\nosBinaryPath = \"openstudio\" # this works if it is on the PATH\nout = w.Output()\nwith out:\n    model = EnergyModel.Run(model, weatherFilePath=weatherFilePath,\n                            osBinaryPath=osBinaryPath, outputFolder=outputFolder)\nprint(\"\\nDONE\")\n\n\nDONE\n\n\n\noutputFolder\n\n'/home/runner/work/topologicpy/topologicpy/EnergyModels'",
     "crumbs": [
       "topologicpy-tutorials",
       "Energy Model with Openstudio"
@@ -114,7 +110,7 @@
     "href": "EnergyModel.html#get-the-space-names-used-in-the-energy-model",
     "title": "Energy Model with Openstudio",
     "section": "Get the space names used in the energy model",
-    "text": "Get the space names used in the energy model\n\n# Get the topologies from the energy model. These have the correct dictionaries with space names etc.\ntopologies = EnergyModel.Topologies(model)\ncells = topologies['cells']\n\n# Get the required row names for the SQL query\nnames = []\nfor cell in cells:\n    d = Topology.Dictionary(cell)\n    name = Dictionary.ValueAtKey(d, 'TOPOLOGIC_name')\n    name = name.upper()+\"_THERMAL_ZONE\"\n    names.append(name)\nprint(\"\\nDONE\")\n\n\nDONE\n\n\n\nnames\n\n['SPACE_0020_THERMAL_ZONE',\n 'SPACE_0019_THERMAL_ZONE',\n 'SPACE_0018_THERMAL_ZONE',\n 'SPACE_0017_THERMAL_ZONE',\n 'SPACE_0015_THERMAL_ZONE',\n 'SPACE_0013_THERMAL_ZONE',\n 'SPACE_0014_THERMAL_ZONE',\n 'SPACE_0000_THERMAL_ZONE',\n 'SPACE_0024_THERMAL_ZONE',\n 'SPACE_0021_THERMAL_ZONE',\n 'SPACE_0006_THERMAL_ZONE',\n 'SPACE_0016_THERMAL_ZONE',\n 'SPACE_0002_THERMAL_ZONE',\n 'SPACE_0012_THERMAL_ZONE',\n 'SPACE_0003_THERMAL_ZONE',\n 'SPACE_0023_THERMAL_ZONE',\n 'SPACE_0011_THERMAL_ZONE',\n 'SPACE_0005_THERMAL_ZONE',\n 'SPACE_0001_THERMAL_ZONE',\n 'SPACE_0008_THERMAL_ZONE',\n 'SPACE_0004_THERMAL_ZONE',\n 'SPACE_0007_THERMAL_ZONE',\n 'SPACE_0022_THERMAL_ZONE',\n 'SPACE_0009_THERMAL_ZONE',\n 'SPACE_0010_THERMAL_ZONE']",
+    "text": "Get the space names used in the energy model\n\n# Get the topologies from the energy model. These have the correct dictionaries with space names etc.\ntopologies = EnergyModel.Topologies(model)\ncells = topologies['cells']\n\n# Get the required row names for the SQL query\nnames = []\nfor cell in cells:\n    d = Topology.Dictionary(cell)\n    name = Dictionary.ValueAtKey(d, 'TOPOLOGIC_name')\n    name = name.upper()+\"_THERMAL_ZONE\"\n    names.append(name)\nprint(\"\\nDONE\")\n\n\nDONE\n\n\n\nnames\n\n['SPACE_0024_THERMAL_ZONE',\n 'SPACE_0019_THERMAL_ZONE',\n 'SPACE_0021_THERMAL_ZONE',\n 'SPACE_0018_THERMAL_ZONE',\n 'SPACE_0017_THERMAL_ZONE',\n 'SPACE_0022_THERMAL_ZONE',\n 'SPACE_0016_THERMAL_ZONE',\n 'SPACE_0015_THERMAL_ZONE',\n 'SPACE_0023_THERMAL_ZONE',\n 'SPACE_0013_THERMAL_ZONE',\n 'SPACE_0000_THERMAL_ZONE',\n 'SPACE_0020_THERMAL_ZONE',\n 'SPACE_0007_THERMAL_ZONE',\n 'SPACE_0002_THERMAL_ZONE',\n 'SPACE_0001_THERMAL_ZONE',\n 'SPACE_0003_THERMAL_ZONE',\n 'SPACE_0009_THERMAL_ZONE',\n 'SPACE_0004_THERMAL_ZONE',\n 'SPACE_0011_THERMAL_ZONE',\n 'SPACE_0014_THERMAL_ZONE',\n 'SPACE_0012_THERMAL_ZONE',\n 'SPACE_0005_THERMAL_ZONE',\n 'SPACE_0006_THERMAL_ZONE',\n 'SPACE_0010_THERMAL_ZONE',\n 'SPACE_0008_THERMAL_ZONE']",
     "crumbs": [
       "topologicpy-tutorials",
       "Energy Model with Openstudio"
@@ -125,7 +121,7 @@
     "href": "EnergyModel.html#set-the-report-table-and-column-names-to-retrieve-from-the-sql-data",
     "title": "Energy Model with Openstudio",
     "section": "Set the report, table, and column names to retrieve from the SQL data",
-    "text": "Set the report, table, and column names to retrieve from the SQL data\n\n# Set the report, table, and column names to retrieve from the SQL data\n\n# Here we specify three possible reports. We get them by index for convenience.\nreports = [\"HVACSizingSummary\", \"HVACSizingSummary\", \"SystemSummary\"]\nforStrings = [\"Entire Facility\", \"Entire Facility\", \"Entire Facility\"]\ntableNames = [\"Zone Sensible Cooling\", \"Zone Sensible Heating\", \"Time Not Comfortable Based on Simple ASHRAE 55-2004\"]\ncolumnNames = [\"User Design Load\", \"User Design Load\", \"Summer or Winter Clothes\"]\nunitsList = [\"W\", \"W\", \"hr\"]\n\n# Choose report 0, 1, or 2\nindex = 0 \n\nreportName = reports[index]\nreportForString = forStrings[index]\ntableName = tableNames[index]\ncolumnName = columnNames[index]\nunits = unitsList[index]\n\n# Get the values from the SQL data\nvalues = EnergyModel.Query(model,\n                          reportName = reportName,\n                          reportForString = reportForString,\n                          tableName = tableName,\n                          columnName = columnName,\n                          rowNames = names,\n                          units = units)\nprint(\"\\nDONE\")\n\n\nDONE",
+    "text": "Set the report, table, and column names to retrieve from the SQL data\n\n# Set the report, table, and column names to retrieve from the SQL data\n\n# Here we specify three possible reports. We get them by index for convenience.\nreports = [\"HVACSizingSummary\", \"HVACSizingSummary\", \"SystemSummary\"]\nforStrings = [\"Entire Facility\", \"Entire Facility\", \"Entire Facility\"]\ntableNames = [\"Zone Sensible Cooling\", \"Zone Sensible Heating\", \"Time Not Comfortable Based on Simple ASHRAE 55-2004\"]\ncolumnNames = [\"User Design Load\", \"User Design Load\", \"Summer or Winter Clothes\"]\nunitsList = [\"W\", \"W\", \"hr\"]\n\n# Choose report 0, 1, or 2\nindex = 0 \n\nreportName = reports[index]\nreportForString = forStrings[index]\ntableName = tableNames[index]\ncolumnName = columnNames[index]\nunits = unitsList[index]\n\n# Get the values from the SQL data\nvalues = EnergyModel.Query(model,\n                          reportName = reportName,\n                          reportForString = reportForString,\n                          tableName = tableName,\n                          columnName = columnName,\n                          rowNames = names,\n                          units = units)\nprint(\"\\nDONE\")\n\n\nDONE\n\n\n\nf_sql = model.sqlFile().get()\nf_sql.path()\n\nPosixPath('/home/runner/work/topologicpy/topologicpy/EnergyModels/UTC-2026-04-12-14-03-41/run/eplusout.sql')",
     "crumbs": [
       "topologicpy-tutorials",
       "Energy Model with Openstudio"
@@ -154,8 +150,26 @@
     ]
   },
   {
-    "objectID": "Building_Tower.html",
-    "href": "Building_Tower.html",
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "topologicpy-tutorials",
+    "section": "",
+    "text": "See here for topologicpy-api-docs. This website showcases a set of tutorials about how to use topologicpy. It simultaneously verifies that the notebooks execute correctly and publically showcases the executed outputs.\nThis is a Quarto website. To learn more about Quarto websites visit https://quarto.org/docs/websites. pixi has been added to support the setup of multiple environments, specifically environments with the extra dependencies required to run the notebooks.\nA handful of notebooks have been copied from notebooks to a new tutorials folder in the root dir and this website is built from executing those notebooks. The notebooks are executed on CI (including an example that requires openstudio), adding a form of integration testing and showing-casing the power of topologicpy in an easy to read website.\nI think that there is more opportunity to both:\n\nshow-case more (all?) of the notebooks in the built website\nsimplify the CI workflows and general setup and reprocubility using pixi"
+  },
+  {
+    "objectID": "MEP00.html",
+    "href": "MEP00.html",
+    "title": "MEP00",
+    "section": "",
+    "text": "from topologicpy.Vertex import Vertex\nfrom topologicpy.Edge import Edge\nfrom topologicpy.Wire import Wire\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Dictionary import Dictionary\nfrom topologicpy.Graph import Graph\nfrom topologicpy.Plotly import Plotly\n\n\nedges_file = open(\"../resources/edges.csv\")\nlines = edges_file.readlines()\nedges = []\nfor line in lines:\n    tokens = line.split(\",\")\n    edge_id, sx, sy, sz, ex, ey, ez = tokens\n    sv = Vertex.ByCoordinates(float(sx), float(sy), float(sz))\n    ev = Vertex.ByCoordinates(float(ex), float(ey), float(ez))\n    e = Edge.ByVertices([sv,ev])\n    d = Dictionary.ByKeyValue(\"id\", edge_id)\n    e = Topology.SetDictionary(e, d)\n    edges.append(e)\n\nnodes_file = open(\"../resources/nodes.csv\")\nlines = nodes_file.readlines()\nvertices = []\nfor line in lines:\n    tokens = line.split(\",\")\n    v_id = tokens[0]\n    x = float(tokens[1])\n    y = float(tokens[2])\n    z = float(tokens[3])\n    v = Vertex.ByCoordinates(x,y,z)\n    adj_edges = tokens[4:]\n    adj_edges = [e.strip(\"\\n\") for e in adj_edges]\n    d = Dictionary.ByKeysValues([\"id\",\"adj_edges\"], [v_id, adj_edges])\n    v = Topology.SetDictionary(v, d)\n    vertices.append(v)\n\ncluster = Cluster.ByTopologies(vertices+edges)\nTopology.Show(cluster)\nnew_edges = []\nfor i, v in enumerate(vertices):\n    v_d = Topology.Dictionary(v)\n    edge_ids = Dictionary.ValueAtKey(v_d, \"adj_edges\")\n    for edge_id in edge_ids:\n        for edge in edges:\n            e_d = Topology.Dictionary(edge)\n            e_id = Dictionary.ValueAtKey(e_d, \"id\")\n            if e_id == edge_id:\n                nearest_v = Vertex.NearestVertex(v, edge, useKDTree=False)\n                new_edges.append(Edge.ByVertices([nearest_v, v]))\n\n                                                    \n\n\n\ncluster = Cluster.ByTopologies(edges+new_edges)\nwire = Topology.SelfMerge(cluster)\nw_vertices = Topology.Vertices(wire)\nw_edges = Topology.Edges(wire)\ng = Graph.ByVerticesEdges(w_vertices, w_edges)\n\nv1 = Graph.NearestVertex(g, Vertex.ByCoordinates(-1,-0.5,0.5))\nv2 = Graph.NearestVertex(g, Vertex.ByCoordinates(1,0.5,-0.5))\nshortest_path = Graph.ShortestPath(g, v1, v2, edgeKey=\"length\")\ndata01 = Plotly.DataByTopology(shortest_path, edgeWidth=6, edgeColor=\"red\", vertexSize=3)\ndata02 = Plotly.DataByTopology(Graph.Topology(g))\nfigure = Plotly.FigureByData(data01+data02)\nPlotly.Show(figure)",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP00"
+    ]
+  },
+  {
+    "objectID": "BuildingTower.html",
+    "href": "BuildingTower.html",
     "title": "Building Tower",
     "section": "",
     "text": "from topologicpy.Vertex import Vertex\nfrom topologicpy.Edge import Edge\nfrom topologicpy.Wire import Wire\nfrom topologicpy.Face import Face\nfrom topologicpy.Shell import Shell\nfrom topologicpy.Cell import Cell\nfrom topologicpy.CellComplex import CellComplex\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Graph import Graph\nfrom topologicpy.Dictionary import Dictionary\n\n\nselectors = []\nground = CellComplex.Prism(width=20, length=20, height=1, placement=\"lowerleft\", uSides=6, vSides=6, wSides=1)\nground = Topology.Translate(ground, 0, 0, -1)\nground_cells = Topology.Cells(ground)\nd = Dictionary.ByKeyValue(\"id\", 0)\nfor cell in ground_cells:\n    s = Topology.InternalVertex(cell)\n    s = Topology.SetDictionary(s, d)\n    selectors.append(s)\nTopology.Show(ground, xAxis=True, yAxis=True, zAxis=True)\n\n                                                    \n\n\n\ncolumns = []\nfor i in range(2,20,4):\n    for j in range(2,20,4):\n        origin = Vertex.ByCoordinates(i,j,0)\n        column = Cell.Prism(width=0.8, length=0.8, height=3, origin=origin, placement=\"bottom\")\n        columns.append(column)\ncolumns = Cluster.ByTopologies(columns)\n\ncolumn_cells = Topology.Cells(columns)\nd = Dictionary.ByKeyValue(\"id\", 1)\nfor cell in column_cells:\n    s = Topology.InternalVertex(cell)\n    s = Topology.SetDictionary(s, d)\n    selectors.append(s)\n\nTopology.Show(columns, ground)\n\n                                                    \n\n\n\norigin = Vertex.ByCoordinates(0.5,0.5,3)\npodium = CellComplex.Prism(width=19, length=19, height=3, uSides=4, vSides=4, wSides=1, origin=origin, placement=\"lowerleft\")\n\npodium_cells = Topology.Cells(podium)\nd = Dictionary.ByKeyValue(\"id\", 2)\nfor cell in podium_cells:\n    s = Topology.InternalVertex(cell)\n    s = Topology.SetDictionary(s, d)\n    selectors.append(s)\n\nTopology.Show(ground, columns, podium)\n\n                                                    \n\n\n\norigin = Vertex.ByCoordinates(1,1,6)\nblock = CellComplex.Prism(width=18, length=18, height=15, uSides=6, vSides=6, wSides=5, origin=origin, placement=\"lowerleft\")\nblock_cells = Topology.Cells(block)\nd = Dictionary.ByKeyValue(\"id\", 3)\nfor cell in block_cells:\n    s = Topology.InternalVertex(cell)\n    s = Topology.SetDictionary(s, d)\n    selectors.append(s)\n\nTopology.Show(ground, columns, podium, block)\n\n                                                    \n\n\n\norigin = Vertex.ByCoordinates(7,7,0)\ncore = Cell.Prism(width=6, length=6, height=24, origin=origin, placement=\"lowerleft\")\ns = Topology.InternalVertex(core)\nd = Dictionary.ByKeyValue(\"id\", 4)\ns = Topology.SetDictionary(s, d)\nselectors.append(s)\nTopology.Show(ground, columns, podium, block, core)\n\n                                                    \n\n\n\ncolumns = Topology.Difference(columns, core)\npodium = Topology.Difference(podium, core)\nblock = Topology.Difference(block, core)\n\n\nground_cells = Topology.Cells(ground)\ncolumn_cells = Topology.Cells(columns)\npodium_cells = Topology.Cells(podium)\nblock_cells = Topology.Cells(block)\n\nall_cells = ground_cells+column_cells+podium_cells+block_cells+[core]\nbuilding = CellComplex.ByCells(all_cells)\n\n\nTopology.Show(building, selectors, faceOpacity=0.1)\n\n                                                    \n\n\n\nbuilding = Topology.TransferDictionariesBySelectors(building, selectors, tranCells=True)\n\n\ngraph = Graph.ByTopology(building)\n\nGraph.Show(graph, vertexSize=12, vertexGroupKey=\"id\")\n\n\n\n\n\nstatus = Graph.ExportToCSV(graph, path=r\"test01\", nodeLabelKey=\"id\", overwrite=True)\nprint(status)\n\nTrue",
@@ -165,10 +179,211 @@
     ]
   },
   {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "topologicpy-tutorials",
+    "objectID": "MEP01.html",
+    "href": "MEP01.html",
+    "title": "MEP01",
     "section": "",
-    "text": "This is a Quarto website. To learn more about Quarto websites visit https://quarto.org/docs/websites. pixi has been added to support the setup of multiple environments, specifically environments with the extra dependencies required to run the notebooks.\nA handful of notebooks have been copied from notebooks to a new tutorials folder in the root dir and this website is built from executing those notebooks. The notebooks are executed on CI (including an example that requires openstudio), adding a form of integration testing and showing-casing the power of topologicpy in an easy to read website.\nI think that there is more opportunity to both:\n\nshow-case more (all?) of the notebooks in the built website\nsimplify the CI workflows and general setup and reprocubility using pixi"
+    "text": "Proof of Concept for Use of topologicpy for MEP\nThis program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP01"
+    ]
+  },
+  {
+    "objectID": "MEP01.html#import-the-needed-python-libraries",
+    "href": "MEP01.html#import-the-needed-python-libraries",
+    "title": "MEP01",
+    "section": "Import the needed python libraries",
+    "text": "Import the needed python libraries\n\n\nfrom topologicpy.Vertex import Vertex\nfrom topologicpy.Edge import Edge\nfrom topologicpy.Wire import Wire\nfrom topologicpy.Face import Face\nfrom topologicpy.Shell import Shell\nfrom topologicpy.Cell import Cell\nfrom topologicpy.CellComplex import CellComplex\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Graph import Graph\nfrom topologicpy.Dictionary import Dictionary\nfrom topologicpy.Vector import Vector\nfrom topologicpy.Helper import Helper\nfrom topologicpy.Plotly import Plotly",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP01"
+    ]
+  },
+  {
+    "objectID": "MEP01.html#import-or-create-the-building-geometry-cellcomplex-with-apertures",
+    "href": "MEP01.html#import-or-create-the-building-geometry-cellcomplex-with-apertures",
+    "title": "MEP01",
+    "section": "Import or Create the building geometry (CellComplex with Apertures)",
+    "text": "Import or Create the building geometry (CellComplex with Apertures)\n\nbuilding = CellComplex.Prism(width=10, length=12, height=3, uSides=1, vSides=3, wSides=1, placement=\"lowerleft\")\ncorridor = Cell.Prism(origin=Vertex.ByCoordinates(4,0,0), width=2,length=12,height=3, placement=\"lowerleft\")\nbuilding = Topology.Merge(building, corridor)\nsource = Cell.Prism(origin=Vertex.ByCoordinates(4,-2,0), width=2, length=2, height=3, placement=\"lowerleft\")\nbuilding = Topology.Merge(building, source)\nselectors = []\ncells = Topology.Cells(building)\nfor cell in cells:\n    centroid = Topology.Centroid(cell)\n    if Vertex.X(centroid) &lt; 4 or Vertex.X(centroid) &gt; 6:\n        d = Dictionary.ByKeyValue(\"name\", \"room\")\n        centroid = Topology.SetDictionary(centroid, d)\n    elif Vertex.Y(centroid) &lt; 0:\n        d = Dictionary.ByKeyValue(\"name\", \"source\")\n        centroid = Topology.SetDictionary(centroid, d)\n    else:\n        d = Dictionary.ByKeyValue(\"name\", \"corridor\")\n        centroid = Topology.SetDictionary(centroid, d)\n    selectors.append(centroid)\n\nbuilding = Topology.TransferDictionariesBySelectors(building, selectors, tranCells=True)\n\nd = CellComplex.Decompose(building)\nint_walls = d['internalVerticalFaces']\nselected_walls = []\nfor int_wall in int_walls:\n    cells = Topology.SuperTopologies(int_wall, building, topologyType=\"cell\")\n    types = []\n    for cell in cells:\n        d = Topology.Dictionary(cell)\n        room_type = Dictionary.ValueAtKey(d, \"name\")\n        types.append(room_type)\n    if \"room\" in types and \"corridor\" in types:\n        selected_walls.append(int_wall)\n    elif \"corridor\" in types and \"source\" in types:\n        selected_walls.append(int_wall)\n    elif types == [\"corridor\", \"corridor\"]:\n        selected_walls.append(int_wall)\napertures = []\nfor w in selected_walls:\n    centroid = Topology.Centroid(w)\n    apertures.append(Topology.Scale(w, origin=centroid, x=0.5, y=0.5, z=0.5))\n\nbuilding = Topology.AddApertures(building, apertures, subTopologyType=\"face\")",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP01"
+    ]
+  },
+  {
+    "objectID": "MEP01.html#derive-a-tree-graph-from-the-building",
+    "href": "MEP01.html#derive-a-tree-graph-from-the-building",
+    "title": "MEP01",
+    "section": "Derive a Tree Graph from the building",
+    "text": "Derive a Tree Graph from the building\n\ngraph = Graph.ByTopology(building, direct=False, directApertures=True)\ngraph = Graph.Tree(graph, Vertex.ByCoordinates(5,-1,1.5))",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP01"
+    ]
+  },
+  {
+    "objectID": "MEP01.html#visualize-the-building-and-the-tree-graph",
+    "href": "MEP01.html#visualize-the-building-and-the-tree-graph",
+    "title": "MEP01",
+    "section": "Visualize the Building and the Tree Graph",
+    "text": "Visualize the Building and the Tree Graph\n\nedges = Graph.Edges(graph)\ncones = []\nfor edge in edges:\n    base = Edge.VertexByParameter(edge, 0.85)\n    top = Edge.EndVertex(edge)\n    height = Vertex.Distance(base, top)\n    direction = Edge.Direction(edge)\n    cones.append(Cell.Cone(origin=base, baseRadius=0.1, height=height, direction=direction, placement=\"bottom\"))\ncones = Cluster.ByTopologies(cones)\ng_top = Graph.Topology(graph)\ndata01 = Plotly.DataByTopology(g_top, vertexSize=4, edgeColor=\"red\", edgeWidth=3, vertexColor=\"blue\")\ndata02 = Plotly.DataByTopology(building)\ndata03 = Plotly.DataByTopology(cones, showVertices=False, faceOpacity=1, faceColor=\"black\")\nfigure = Plotly.FigureByData(data01+data02+data03)\nPlotly.Show(figure)",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP01"
+    ]
+  },
+  {
+    "objectID": "MEP01.html#assign-attributes-to-graph-edges-ducts",
+    "href": "MEP01.html#assign-attributes-to-graph-edges-ducts",
+    "title": "MEP01",
+    "section": "Assign attributes to graph edges (ducts)",
+    "text": "Assign attributes to graph edges (ducts)\n\nedges = Graph.Edges(graph)\nfor edge in edges:\n    sv = Edge.StartVertex(edge)\n    ev = Edge.EndVertex(edge)\n    length = Edge.Length(edge)\n    if Vertex.IsInternal(sv, source):\n        diam = 0.5\n    elif Vertex.IsInternal(sv, corridor) and Vertex.IsInternal(ev, corridor):\n        diam = 0.4\n    else:\n        diam = 0.2\n    d = Dictionary.ByKeysValues([\"diameter\", \"airflow\", \"label\"], [diam, 1, \"Diam: \"+str(diam)+\"/ Length: \"+str(length)])\n    edge = Topology.SetDictionary(edge, d)",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP01"
+    ]
+  },
+  {
+    "objectID": "MEP01.html#visualize-ducts-in-3d",
+    "href": "MEP01.html#visualize-ducts-in-3d",
+    "title": "MEP01",
+    "section": "Visualize ducts in 3D",
+    "text": "Visualize ducts in 3D\n\nedges = Graph.Edges(graph)\nducts = []\nfor edge in edges:\n    origin = Edge.StartVertex(edge)\n    direction = Edge.Direction(edge)\n    d = Topology.Dictionary(edge)\n    diameter = Dictionary.ValueAtKey(d, \"diameter\")\n    direction = Edge.Direction(edge)\n    height = Edge.Length(edge)\n    duct = Cell.Cylinder(origin=origin, radius=diameter*0.5, height=height, direction=direction, placement=\"bottom\")\n    ducts.append(duct)\ndata01 = Plotly.DataByTopology(Cluster.ByTopologies(ducts), showVertices=False, faceColor=\"red\", faceOpacity=1)\ndata02 = Plotly.DataByTopology(building)\nfigure = Plotly.FigureByData(data01+data02)\nPlotly.Show(figure)",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP01"
+    ]
+  },
+  {
+    "objectID": "MEP01.html#define-a-pressure-drop-function.-this-is-most-likely-completely-wrong",
+    "href": "MEP01.html#define-a-pressure-drop-function.-this-is-most-likely-completely-wrong",
+    "title": "MEP01",
+    "section": "Define a Pressure Drop function. This is most likely completely wrong!",
+    "text": "Define a Pressure Drop function. This is most likely completely wrong!\n\ndef compute_pressure_drop_hvac(graph, air_density):\n    \"\"\"\n    Compute pressure drop in an HVAC system using the given formula.\n\n    Parameters:\n    - graph: Directed graph representing the HVAC system (networkx.DiGraph).\n    - airflow_rate: Airflow rate through each duct (dict of edges to airflow rates).\n    - duct_diameter: Diameter of each duct (dict of edges to diameters).\n    - duct_length: Length of each duct (dict of edges to lengths).\n    - air_density: Density of the air.\n\n    Returns:\n    - pressure_drop: Dictionary of nodes to pressure drops.\n    \"\"\"\n    vertices = Graph.Vertices(graph)\n    for v in vertices:\n        d = Dictionary.ByKeysValues([\"pressure_drop\", \"label\"], [0, \"P.D. 0\"])\n        v = Topology.SetDictionary(v, d)\n\n    edges = Graph.Edges(graph)\n    for edge in edges:\n        d = Topology.Dictionary(edge)\n        airflow = Dictionary.ValueAtKey(d, \"airflow\")\n        diameter = Dictionary.ValueAtKey(d, \"diameter\")\n        length = Edge.Length(edge)\n\n        velocity = airflow / (3.14159 * (diameter / 2)**2)  # Calculate velocity based on airflow and duct diameter\n        friction_factor = 0.03  # You may need to adjust this based on the specific characteristics of your system\n        ev = Edge.EndVertex(edge)\n        ev = Graph.NearestVertex(graph, ev)\n        d_v = Topology.Dictionary(ev)\n        pressure_drop = Dictionary.ValueAtKey(d_v, \"pressure_drop\")\n        pressure_drop += friction_factor * (length / diameter) * (air_density * velocity**2 / 2)\n        d_v = Dictionary.ByKeysValues([\"pressure_drop\", \"label\"], [pressure_drop, \"P.D. \"+str(pressure_drop)])\n        ev = Topology.SetDictionary(ev, d_v)\n\n    return graph",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP01"
+    ]
+  },
+  {
+    "objectID": "MEP01.html#calculate-pressure-drop",
+    "href": "MEP01.html#calculate-pressure-drop",
+    "title": "MEP01",
+    "section": "Calculate Pressure Drop",
+    "text": "Calculate Pressure Drop\n\nair_density = 1.2  # kg/m^3\n\ngraph = compute_pressure_drop_hvac(graph, air_density)\nvertices = Graph.Vertices(graph)\ngroups = []\nfor v in vertices:\n    d = Topology.Dictionary(v)\n    print(Dictionary.Keys(d), Dictionary.Values(d))\n    p_d = Dictionary.ValueAtKey(d, \"pressure_drop\")\n    groups.append(p_d)\ngroups = list(set(groups))\n\n['label', 'pressure_drop'] ['P.D. 273.5676579795474', 273.5676579795474]\n['label', 'pressure_drop'] ['P.D. 11.398652415814475', 11.398652415814475]\n['label', 'pressure_drop'] ['P.D. 273.5676579795474', 273.5676579795474]\n['label', 'pressure_drop'] ['P.D. 273.5676579795474', 273.5676579795474]\n['label', 'pressure_drop'] ['P.D. 11.398652415814475', 11.398652415814475]\n['label', 'pressure_drop'] ['P.D. 273.5676579795474', 273.5676579795474]\n['label', 'pressure_drop'] ['P.D. 2.8013328177105667', 2.8013328177105667]\n['label', 'pressure_drop'] ['P.D. 273.5676579795474', 273.5676579795474]\n['label', 'pressure_drop'] ['P.D. 0', 0]\n['label', 'pressure_drop'] ['P.D. 273.5676579795474', 273.5676579795474]",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP01"
+    ]
+  },
+  {
+    "objectID": "MEP01.html#visualise-pressure-drop-in-pyvis",
+    "href": "MEP01.html#visualise-pressure-drop-in-pyvis",
+    "title": "MEP01",
+    "section": "Visualise Pressure Drop in Pyvis",
+    "text": "Visualise Pressure Drop in Pyvis\n\nstatus = Graph.PyvisGraph(graph, \"mep01-vis.html\", vertexGroupKey=\"pressure_drop\", vertexGroups=groups, vertexLabelKey=\"label\", edgeLabelKey=\"label\")\n\nmep01-vis.html\n\n\ngio: file:///home/jovyan/topologicpy/tutorials/mep01-vis.html: Failed to find default application for content type ‘text/html’\n\n\n\nfrom IPython.display import IFrame\n\nIFrame(\"mep01-vis.html\", width=1200, height = 1200)",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP01"
+    ]
+  },
+  {
+    "objectID": "INSTALL.html",
+    "href": "INSTALL.html",
+    "title": "Developer Install",
+    "section": "",
+    "text": "This website is built by Github Actions with a Linux Ubuntu distribution using Quarto. You can replicate the same setup locally to run the tutorials, this will currently only work on Linux. See callout below to setup up Linux on your Windows machine using\nWSL."
+  },
+  {
+    "objectID": "INSTALL.html#pixi-tasks",
+    "href": "INSTALL.html#pixi-tasks",
+    "title": "Developer Install",
+    "section": "Pixi Tasks",
+    "text": "Pixi Tasks\nCommon developer tasks are defined in the pixi.toml file. To see the available tasks:\npixi task list\n\n\n\nTasks that can run on this machine:\n\n-----------------------------------\n\nanalyse-nb-imports, del-tutorials, download-openstudio, install-openstudio, lab, lab-tutorials, list-sidebar, mk-build-dir, open-tutorials, preview, test-energy, tests, tutorials\n\nTask                 Description\n\nanalyse-nb-imports   analyse notebook imports\n\ndel-tutorials        delete built tutorials\n\ndownload-openstudio  download OpenStudio for Ubuntu 24.04\n\ninstall-openstudio   install OpenStudio on Ubuntu\n\nlab                  open Jupyter Lab for notebooks\n\nlab-tutorials        open Jupyter Lab for tutorials\n\nlist-sidebar         list sidebar contents from _quarto.yml\n\nmk-build-dir         create build directory\n\nopen-tutorials       open built tutorials\n\npreview              preview tutorials using Quarto\n\ntest-energy          run energy model import tests with dev env\n\ntutorials            render tutorials using Quarto"
+  },
+  {
+    "objectID": "INSTALL.html#notes",
+    "href": "INSTALL.html#notes",
+    "title": "Developer Install",
+    "section": "Notes",
+    "text": "Notes\n\nTo avoid duplication, Notebooks are copied from the notebooks directory to the tutorials directory when the Quarto website is built, such that the notebooks in the notebooks directory are the source of truth and the ones in the tutorials directory are generated.\nBy default in Quarto, Notebooks are not executed at build time and the saved outputs are used. Adding to the front matter of the notebook will enable execution at build time, this can serve as a test to ensure that the notebook is still working.\nexecute:\n  enabled: true\nAlternatively, you can use .qmd files instead of .ipynb files for your notebooks where the output is not saved, and then the notebook output is generated at build time."
+  },
+  {
+    "objectID": "MEP02.html",
+    "href": "MEP02.html",
+    "title": "MEP02",
+    "section": "",
+    "text": "from topologicpy.Vertex import Vertex\nfrom topologicpy.Edge import Edge\nfrom topologicpy.Wire import Wire\nfrom topologicpy.Face import Face\nfrom topologicpy.Shell import Shell\nfrom topologicpy.Cell import Cell\nfrom topologicpy.CellComplex import CellComplex\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Graph import Graph\nfrom topologicpy.Dictionary import Dictionary\nfrom topologicpy.Vector import Vector\nfrom topologicpy.Helper import Helper\nfrom topologicpy.Plotly import Plotly\n\n\na = Vertex.ByCoordinates(0, 0, 0)\ndt = Dictionary.ByKeysValues([\"TOPOLOGIC_ID\", \"outposts\"],[\"A\", [\"B\"]])\na = Topology.SetDictionary(a, dt)\n\nb = Vertex.ByCoordinates(10,0,0)\ndt = Dictionary.ByKeysValues([\"TOPOLOGIC_ID\", \"outposts\"],[\"B\", [\"C\", \"D\", \"E\"]])\nb = Topology.SetDictionary(b, dt)\n\nc = Vertex.ByCoordinates(15,5,0)\ndt = Dictionary.ByKeysValues([\"TOPOLOGIC_ID\", \"outposts\"],[\"C\", [\"F\"]])\nc = Topology.SetDictionary(c, dt)\n\nd = Vertex.ByCoordinates(15,0,0)\ndt = Dictionary.ByKeysValues([\"TOPOLOGIC_ID\", \"outposts\"],[\"D\", [\"G\"]])\nd = Topology.SetDictionary(d, dt)\n\ne = Vertex.ByCoordinates(15,-5,0)\ndt = Dictionary.ByKeysValues([\"TOPOLOGIC_ID\", \"outposts\"],[\"E\", [\"H\"]])\ne = Topology.SetDictionary(e, dt)\n\nf = Vertex.ByCoordinates(20,5,0)\ndt = Dictionary.ByKeyValue(\"TOPOLOGIC_ID\",\"F\")\nf = Topology.SetDictionary(f, dt)\n\ng = Vertex.ByCoordinates(20,0,0)\ndt = Dictionary.ByKeyValue(\"TOPOLOGIC_ID\",\"G\")\ng = Topology.SetDictionary(g, dt)\n\nh = Vertex.ByCoordinates(20,-5,0)\ndt = Dictionary.ByKeysValues([\"TOPOLOGIC_ID\", \"outposts\"],[\"H\", [\"I\",\"J\"]])\nh = Topology.SetDictionary(h, dt)\n\ni = Vertex.ByCoordinates(25,-3,0)\ndt = Dictionary.ByKeyValue(\"TOPOLOGIC_ID\",\"I\")\ni = Topology.SetDictionary(i, dt)\n\nj = Vertex.ByCoordinates(25,-7,0)\ndt = Dictionary.ByKeyValue(\"TOPOLOGIC_ID\",\"J\")\nj = Topology.SetDictionary(j, dt)\n\ncluster = Cluster.ByTopologies(a,b,c,d,e,f,g,h,i,j)\ngraph = Graph.ByTopology(cluster, toOutposts=True)\nTopology.Show(graph, vertexSize=3, camera=[0,0,3], up=[0,1,0])\n\n                                                    \n\n\n\nstatus = Graph.PyvisGraph(graph, \"mep02-vis.html\", vertexLabelKey=\"TOPOLOGIC_ID\")\n\nmep02-vis.html\n\n\n\nfrom IPython.display import IFrame\n\nIFrame(\"mep02-vis.html\", width=1200, height = 1200)",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "MEP02"
+    ]
+  },
+  {
+    "objectID": "HandDrawnHouse.html",
+    "href": "HandDrawnHouse.html",
+    "title": "Hand Drawn House",
+    "section": "",
+    "text": "from topologicpy.Vertex import Vertex\nfrom topologicpy.Edge import Edge\nfrom topologicpy.Wire import Wire\nfrom topologicpy.Face import Face\nfrom topologicpy.Shell import Shell\nfrom topologicpy.Cell import Cell\nfrom topologicpy.CellComplex import CellComplex\nfrom topologicpy.Cluster import Cluster\nfrom topologicpy.Topology import Topology\nfrom topologicpy.Graph import Graph\nfrom topologicpy.Dictionary import Dictionary\nimport ipywidgets as w\n\nfile = open(\"../resources/typical-house-plan-GF.png\", \"rb\")\nw.Image(\n    value=file.read(),\n    format='png',\n    # width=300,\n    # height=400,\n)",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "Hand Drawn House"
+    ]
+  },
+  {
+    "objectID": "HandDrawnHouse.html#input-data",
+    "href": "HandDrawnHouse.html#input-data",
+    "title": "Hand Drawn House",
+    "section": "Input Data",
+    "text": "Input Data\n\nx0, x1, x2, x3, x4, x5, x6, x7 = 0, 1, 2.5, 3, 3.65, 5.45, 6.1, 6.7 \ny0, y1, y2, y3, y4, y5, y6 = 0, 0.8, 2.4, 4.7, 5.6, 9.4, 10\nz0, z1, z2, z3 = 0, 3.4, 6.8, 10.2\n\nhall_plan = [\n    (x0, y1),\n    (x0, y2),\n    (x1, y2),\n    (x1, y4),\n    (x2, y4),\n    (x2, y1),\n]\n\nstairs_plan = [\n    (x0, y2),\n    (x0, y4),\n    (x1, y4),\n    (x1, y2),\n]\n\nkitchen_plan = [\n    (x0, y4),\n    (x0, y5),\n    (x2, y5),\n    (x2, y4),\n]\n\n\nfrontLR_plan = [\n    (x2, y1),\n    (x2, y3),\n    (x7, y3),\n    (x7, y1),\n    (x6, y1),\n    (x5, y0),\n    (x4, y0),\n    (x3, y1),\n] \n\n\nbackLR_plan = [\n    (x2, y3),\n    (x2, y5),\n    (x3, y5),\n    (x4, y6),\n    (x5, y6),\n    (x6, y5),\n    (x7, y5),\n    (x7, y3),\n]",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "Hand Drawn House"
+    ]
+  },
+  {
+    "objectID": "HandDrawnHouse.html#draw-plan",
+    "href": "HandDrawnHouse.html#draw-plan",
+    "title": "Hand Drawn House",
+    "section": "Draw Plan",
+    "text": "Draw Plan\n\nplan_2d = Cluster.ByTopologies(\n    Wire.ByVertices([Vertex.ByCoordinates(*list(x) + [z0]) for x in hall_plan]),\n    Wire.ByVertices([Vertex.ByCoordinates(*list(x) + [z0]) for x in stairs_plan]),\n    Wire.ByVertices([Vertex.ByCoordinates(*list(x) + [z0]) for x in kitchen_plan]),\n    Wire.ByVertices([Vertex.ByCoordinates(*list(x) + [z0]) for x in frontLR_plan]),\n    Wire.ByVertices([Vertex.ByCoordinates(*list(x) + [z0]) for x in backLR_plan]),\n)\nTopology.Show(plan_2d)",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "Hand Drawn House"
+    ]
+  },
+  {
+    "objectID": "HandDrawnHouse.html#draw-3d-cells",
+    "href": "HandDrawnHouse.html#draw-3d-cells",
+    "title": "Hand Drawn House",
+    "section": "Draw 3D Cells",
+    "text": "Draw 3D Cells\n\ndef cell_from_plan(plan, z0, z1):\n    return Cell.ByWires([\n        Wire.ByVertices([Vertex.ByCoordinates(*list(x) + [z0]) for x in plan]),\n        Wire.ByVertices([Vertex.ByCoordinates(*list(x) + [z1]) for x in plan]),\n    ])\n\n    \nhall = cell_from_plan(hall_plan, z0, z1)\nstairs = cell_from_plan(stairs_plan, z0, z2)\nkitchen = cell_from_plan(kitchen_plan, z0, z1)\nfrontLR = cell_from_plan(frontLR_plan, z0, z1)\nbackLR = cell_from_plan(backLR_plan, z0, z1)\nplan = Cluster.ByTopologies(stairs, hall, kitchen, frontLR, backLR)\nTopology.Show(plan)",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "Hand Drawn House"
+    ]
+  },
+  {
+    "objectID": "HandDrawnHouse.html#add-windows",
+    "href": "HandDrawnHouse.html#add-windows",
+    "title": "Hand Drawn House",
+    "section": "Add windows",
+    "text": "Add windows\n… I think I’ve approached this wrong… the walls must be made up of walls and windows…",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "Hand Drawn House"
+    ]
+  },
+  {
+    "objectID": "GraphGrammars.html",
+    "href": "GraphGrammars.html",
+    "title": "Graph Grammars",
+    "section": "",
+    "text": "An elegant method to save a grammar using topologicpy is to store each rule as an edge and to store the whole grammar as a list of edges. The two vertices of each edge store the shapes (closed wires). The start vertex stores the left-side shape and the end vertex of the edge stores the right-side shape. The edge itself stores a dictionary with values that indicate its name, purpose, and any other needed information.\n\nfrom topologicpy.Vertex import Vertex\nfrom topologicpy.Edge import Edge\nfrom topologicpy.Wire import Wire\nfrom topologicpy.Face import Face\nfrom topologicpy.Topology import Topology\n\n# Create an L-shaped polygon with specific parameters\nt_shape_01 = Wire.TShape(width=0.5, a=0.25, b=0.25, placement=\"lowerleft\")\n\nt_shape_02 = Topology.Translate(t_shape_01, 2, 0, 0)\nt_shape_02 = Topology.Rotate(t_shape_02, angle=32.5)\nt_shape_02 = Topology.Scale(t_shape_02, x=2, y=2, z=2)\nTopology.Show(t_shape_01, t_shape_02)\nrep_01 = Wire.Representation(t_shape_01, mantissa=6)\nrep_02 = Wire.Representation(t_shape_02, mantissa=6)\n\nprint(rep_01)\nprint(rep_02)\n\nprint(Wire.IsSimilar(t_shape_01, t_shape_02))\n\n                                                    \n\n\n[1.0, 90.0, 2.0, 90.0, 4.0, 90.0, 2.0, 90.0, 1.0, 90.0, 6.0, 2.0, 90.0, 6.0, 90.0]\n[1.0, 90.0, 2.0, 89.999969, 4.0, 90.000066, 2.0, 89.999965, 1.0, 90.0, 6.0, 2.0, 90.000073, 6.0, 90.000012]\nTrue",
+    "crumbs": [
+      "topologicpy-tutorials",
+      "Graph Grammars"
+    ]
   }
 ]

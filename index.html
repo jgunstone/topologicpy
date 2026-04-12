@@ -42,9 +42,9 @@ ul.task-list li input[type="checkbox"] {
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-ed96de9b727972fe78a7b5d16c58bf87.css" rel="stylesheet" class="quarto-color-scheme-extra" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-fc794b057e105cf37c45f32b4840d02b.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
-<link href="site_libs/bootstrap/bootstrap-dark-b7c9aaa1d81c52e4f8e0b2046e89f84a.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
-<link href="site_libs/bootstrap/bootstrap-fc794b057e105cf37c45f32b4840d02b.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-9e2062a8ba65f8be352550e47ae0b728.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-dark-bf1fa0d5cf8d976b482313c095f358b8.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme quarto-color-alternate" id="quarto-bootstrap" data-mode="dark">
+<link href="site_libs/bootstrap/bootstrap-9e2062a8ba65f8be352550e47ae0b728.min.css" rel="stylesheet" append-hash="true" class="quarto-color-scheme-extra" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -256,6 +256,12 @@ ul.task-list li input[type="checkbox"] {
 <span class="menu-text">topologicpy-tutorials</span></a>
   </li>  
 </ul>
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="./INSTALL.html"> 
+<span class="menu-text">Developer Install</span></a>
+  </li>  
+</ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
   <a href="" class="quarto-color-scheme-toggle quarto-navigation-tool  px-1" onclick="window.quartoToggleColorScheme(); return false;" title="Toggle dark mode"><i class="bi"></i></a>
@@ -289,8 +295,14 @@ ul.task-list li input[type="checkbox"] {
     <ul class="list-unstyled mt-1">
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./Building_Tower.html" class="sidebar-item-text sidebar-link">
+  <a href="./BuildingTower.html" class="sidebar-item-text sidebar-link">
  <span class="menu-text">Building Tower</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./HandDrawnHouse.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Hand Drawn House</span></a>
   </div>
 </li>
         <li class="sidebar-item">
@@ -301,8 +313,26 @@ ul.task-list li input[type="checkbox"] {
 </li>
         <li class="sidebar-item">
   <div class="sidebar-item-container"> 
-  <a href="./MEP.html" class="sidebar-item-text sidebar-link">
- <span class="menu-text">MEP</span></a>
+  <a href="./MEP00.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MEP00</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./MEP01.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MEP01</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./MEP02.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">MEP02</span></a>
+  </div>
+</li>
+        <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./GraphGrammars.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Graph Grammars</span></a>
   </div>
 </li>
     </ul>
@@ -336,6 +366,7 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
+<p>See here for <a href="https://topologicpy.readthedocs.io/en/latest/">topologicpy-api-docs</a>. This website showcases a set of tutorials about how to use topologicpy. It simultaneously verifies that the notebooks execute correctly and publically showcases the executed outputs.</p>
 <p>This is a Quarto website. To learn more about Quarto websites visit <a href="https://quarto.org/docs/websites" class="uri">https://quarto.org/docs/websites</a>. <a href="https://pixi.prefix.dev/latest/"><code>pixi</code></a> has been added to support the setup of multiple environments, specifically environments with the extra dependencies required to run the notebooks.</p>
 <p>A handful of notebooks have been copied from <code>notebooks</code> to a new <code>tutorials</code> folder in the root dir and this website is built from executing those notebooks. The notebooks are executed on CI (including an example that requires <a href="https://openstudio.net/downloads0"><code>openstudio</code></a>), adding a form of integration testing and showing-casing the power of <code>topologicpy</code> in an easy to read website.</p>
 <p>I think that there is more opportunity to both:</p>
