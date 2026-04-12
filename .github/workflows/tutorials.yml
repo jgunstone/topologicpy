@@ -20,7 +20,7 @@ jobs:
           locked: false
           cache: true
           cache-write: ${{ github.event_name == 'push' && github.ref_name == 'add-pixi' }}
-      - run: pixi run install-openstudio-ubuntu # NOTE: can comment out when energyplus installable from prefix channel
+      - run: pixi run install-openstudio # NOTE: can openstudio be installable from prefix channel?
       - run: pixi run tutorials
       - name: Push docs to gh-pages
         uses: JamesIves/github-pages-deploy-action@v4
