@@ -9342,7 +9342,7 @@ packages:
   requires_python: '>=3.8'
 - pypi: ./
   name: topologicpy
-  version: 0.9.14
+  version: 0.9.18
   sha256: 2af64c022145eed11d8401cd3e8dda0df82dc4643ea4518fd199d9d187bdc205
   requires_dist:
   - numpy>=1.18.0
